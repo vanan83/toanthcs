@@ -85,7 +85,9 @@ hr { border: 0; border-top: 1px solid var(--line); margin: 1.2em 0; }
 .icon-btn:hover { background: rgba(255, 255, 255, .26); }
 .top .btn.sm { min-height: 36px; padding: 6px 16px; border: 0; border-radius: 99px; background: #fff; color: #0d47a1; box-shadow: 0 4px 12px rgba(0, 0, 0, .18); }
 @media (min-width: 680px) { .nav { order: 0; width: auto; margin-left: 14px; } }
-.foot { text-align: center; color: var(--muted); font-size: .84rem; padding: 26px 16px 40px; }
+.foot { text-align: center; color: var(--muted); font-size: .84rem; padding: 26px 16px 40px; line-height: 1.7; }
+.foot-author { font-weight: 700; }
+.foot a { color: inherit; text-decoration: none; }
 
 /* ---------- nút ---------- */
 .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 42px; padding: 8px 18px; border-radius: 12px;

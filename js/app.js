@@ -6,8 +6,8 @@ import { render as drawFig } from './svg.js';
 import { ls, call, SERVER_ON } from './api.js';
 
 // Phiên bản = ngày cập nhật (năm.tháng.ngày). Mỗi lần sửa app: đổi dòng này và tăng CACHE trong sw.js.
-const VERSION = '2026.11.11-3';
-const VERSION_NOTE = 'bắt buộc đăng nhập';
+const VERSION = '2026.11.11-4';
+const VERSION_NOTE = 'thêm tác giả ở chân trang';
 const ADMIN = 'Quản trị';
 const LV = ['', 'Dễ', 'Vừa', 'Khó'];
 const $ = (s, el = document) => el.querySelector(s);
@@ -115,9 +115,10 @@ function chrome() {
 function foot() {
   const n = queue().length, off = navigator.onLine === false;
   const [vd, vn] = VERSION.split('-');
-  $('#foot').innerHTML = `Luyện Toán THCS · Phiên bản ${vd.split('.').reverse().join('/')}${vn ? ` (lần ${vn})` : ''} · ${VERSION_NOTE}` +
+  $('#foot').innerHTML = '<div class="foot-author">Tác giả: Phạm Văn An · Điện thoại: <a href="tel:0848355888">0848.355.888</a></div>' +
+    `<div>Phiên bản: ${vd.split('.').reverse().join('/')}${vn ? ` (lần ${vn})` : ''} · ${VERSION_NOTE}` +
     (off ? ' · <b>Đang ngoại tuyến</b> (vẫn làm bài được)' : '') +
-    (n ? ` · Chờ đồng bộ ${n} lượt` : '');
+    (n ? ` · Chờ đồng bộ ${n} lượt` : '') + '</div>';
 }
 function navActive() {
   const h = location.hash || '#/';

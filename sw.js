@@ -1,7 +1,7 @@
 // sw.js — cho app mở ngay (lấy từ bộ nhớ đệm) và chạy được khi mất mạng.
 // Trả bản đã lưu ngay lập tức, đồng thời hỏi máy chủ bản mới (bỏ qua bộ nhớ HTTP 10 phút của GitHub).
 // Khi có bản mới (CACHE đổi tên), service worker mới cài lại toàn bộ file và báo trang tự tải lại một lần.
-const CACHE = 'thcs-2026.11.11-3';   // đặt trùng ngày phiên bản trong js/app.js
+const CACHE = 'thcs-2026.11.11-4';   // đặt trùng ngày phiên bản trong js/app.js
 const SHELL = ['./', 'index.html', 'styles.css', 'manifest.webmanifest', 'icon.svg',
   'js/app.js', 'js/gen.js', 'js/core.js', 'js/g6.js', 'js/g7.js', 'js/g8.js', 'js/g9.js',
   'js/math.js', 'js/svg.js', 'js/api.js', 'js/config.js'];
