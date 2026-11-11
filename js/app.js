@@ -6,8 +6,8 @@ import { render as drawFig } from './svg.js';
 import { ls, call, SERVER_ON } from './api.js';
 
 // Phiên bản = ngày cập nhật (năm.tháng.ngày). Mỗi lần sửa app: đổi dòng này và tăng CACHE trong sw.js.
-const VERSION = '2026.11.11-8';
-const VERSION_NOTE = 'hẹn giờ học, đồng hồ làm bài, bảng số câu'; // chỉ ghi chú trong code, không hiện ra màn hình
+const VERSION = '2026.11.11-9';
+const VERSION_NOTE = 'nút Thoát khi làm bài rõ hơn'; // chỉ ghi chú trong code, không hiện ra màn hình
 const ADMIN = 'Quản trị';
 const LV = ['', 'Dễ', 'Vừa', 'Khó'];
 const $ = (s, el = document) => el.querySelector(s);
@@ -268,7 +268,7 @@ function drawQ() {
   setGrade(s ? s.grade : Q.grade);
   view.innerHTML = `
   <div class="qtop">
-    <a class="back" href="#/" id="quit">✕ Thoát</a>
+    <a class="back" href="#/" id="quit"><b aria-hidden="true">✕</b> Thoát</a>
     <span class="qtitle ell">${esc(Q.title)}</span>
     <span class="clock" id="qClock" title="Thời gian làm bài">⏱ ${mmss((Date.now() - Q.t0) / 1000)}</span>
     <span class="score" title="Số câu đúng">⭐ ${Q.ok}</span>
