@@ -1,7 +1,7 @@
 // sw.js — cho app mở ngay (lấy từ bộ nhớ đệm) và chạy được khi mất mạng.
 // Cách làm "stale-while-revalidate": trả bản đã lưu ngay lập tức, đồng thời tải bản mới về để lần mở sau dùng.
 // Khi đổi nhiều file cùng lúc, tăng số phiên bản CACHE để xoá bộ đệm cũ.
-const CACHE = 'thcs-v1';
+const CACHE = 'thcs-v2';
 const SHELL = ['./', 'index.html', 'styles.css', 'manifest.webmanifest', 'icon.svg',
   'js/app.js', 'js/gen.js', 'js/math.js', 'js/svg.js', 'js/api.js', 'js/config.js'];
 

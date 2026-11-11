@@ -472,26 +472,33 @@ function g9duongtron(lv) {
 /* =================== DANH MỤC BÀI =================== */
 export const GRADES = [6, 7, 8, 9];
 export const SKILLS = [
-  { code: '6-UCLN', grade: 6, name: 'ƯCLN và BCNN', gen: g6ucln },
-  { code: '6-LUYTHUA', grade: 6, name: 'Lũy thừa, thứ tự thực hiện phép tính', gen: g6luythua },
-  { code: '6-SONGUYEN', grade: 6, name: 'Cộng, trừ số nguyên', gen: g6songuyen },
-  { code: '6-PHANSO', grade: 6, name: 'Phân số', gen: g6phanso },
-  { code: '6-BIEUDO', grade: 6, name: 'Đọc biểu đồ cột', gen: g6bieudo },
-  { code: '7-SOHUUTI', grade: 7, name: 'Số hữu tỉ', gen: g7sohuuti },
-  { code: '7-TILE', grade: 7, name: 'Tỉ lệ thức, đại lượng tỉ lệ', gen: g7tile },
-  { code: '7-GOC', grade: 7, name: 'Tổng các góc của tam giác', gen: g7goc },
-  { code: '7-DATHUC', grade: 7, name: 'Đa thức một biến', gen: g7dathuc },
-  { code: '8-HDT', grade: 8, name: 'Hằng đẳng thức đáng nhớ', gen: g8hdt },
-  { code: '8-PT', grade: 8, name: 'Phương trình bậc nhất một ẩn', gen: g8pt },
-  { code: '8-HAMSO', grade: 8, name: 'Hàm số bậc nhất và đồ thị', gen: g8hamso },
-  { code: '8-PYTAGO', grade: 8, name: 'Định lí Pythagore', gen: g8pytago },
-  { code: '9-CAN', grade: 9, name: 'Căn bậc hai', gen: g9can },
-  { code: '9-HEPT', grade: 9, name: 'Hệ hai phương trình bậc nhất', gen: g9hept },
-  { code: '9-PARABOL', grade: 9, name: 'Hàm số y = ax² và parabol', gen: g9parabol },
-  { code: '9-PTB2', grade: 9, name: 'Phương trình bậc hai, Vi-ét', gen: g9ptb2 },
-  { code: '9-LUONGGIAC', grade: 9, name: 'Tỉ số lượng giác của góc nhọn', gen: g9luonggiac },
-  { code: '9-DUONGTRON', grade: 9, name: 'Góc ở tâm, góc nội tiếp', gen: g9duongtron },
+  { code: '6-UCLN', grade: 6, icon: '🔢', name: 'ƯCLN và BCNN', gen: g6ucln },
+  { code: '6-LUYTHUA', grade: 6, icon: '⚡', name: 'Lũy thừa, thứ tự thực hiện phép tính', gen: g6luythua },
+  { code: '6-SONGUYEN', grade: 6, icon: '🌡️', name: 'Cộng, trừ số nguyên', gen: g6songuyen },
+  { code: '6-PHANSO', grade: 6, icon: '🍕', name: 'Phân số', gen: g6phanso },
+  { code: '6-BIEUDO', grade: 6, icon: '📊', name: 'Đọc biểu đồ cột', gen: g6bieudo },
+  { code: '7-SOHUUTI', grade: 7, icon: '➗', name: 'Số hữu tỉ', gen: g7sohuuti },
+  { code: '7-TILE', grade: 7, icon: '⚖️', name: 'Tỉ lệ thức, đại lượng tỉ lệ', gen: g7tile },
+  { code: '7-GOC', grade: 7, icon: '📐', name: 'Tổng các góc của tam giác', gen: g7goc },
+  { code: '7-DATHUC', grade: 7, icon: '🧮', name: 'Đa thức một biến', gen: g7dathuc },
+  { code: '8-HDT', grade: 8, icon: '✨', name: 'Hằng đẳng thức đáng nhớ', gen: g8hdt },
+  { code: '8-PT', grade: 8, icon: '🎯', name: 'Phương trình bậc nhất một ẩn', gen: g8pt },
+  { code: '8-HAMSO', grade: 8, icon: '📈', name: 'Hàm số bậc nhất và đồ thị', gen: g8hamso },
+  { code: '8-PYTAGO', grade: 8, icon: '📏', name: 'Định lí Pythagore', gen: g8pytago },
+  { code: '9-CAN', grade: 9, icon: '🌱', name: 'Căn bậc hai', gen: g9can },
+  { code: '9-HEPT', grade: 9, icon: '🔗', name: 'Hệ hai phương trình bậc nhất', gen: g9hept },
+  { code: '9-PARABOL', grade: 9, icon: '🎢', name: 'Hàm số y = ax² và parabol', gen: g9parabol },
+  { code: '9-PTB2', grade: 9, icon: '🧩', name: 'Phương trình bậc hai, Vi-ét', gen: g9ptb2 },
+  { code: '9-LUONGGIAC', grade: 9, icon: '🔺', name: 'Tỉ số lượng giác của góc nhọn', gen: g9luonggiac },
+  { code: '9-DUONGTRON', grade: 9, icon: '⭕', name: 'Góc ở tâm, góc nội tiếp', gen: g9duongtron },
 ];
+/** Mô tả ngắn từng lớp (hiện dưới các tab). */
+export const GRADE_INFO = {
+  6: 'Số tự nhiên · Số nguyên · Phân số · Thống kê',
+  7: 'Số hữu tỉ · Tỉ lệ thức · Tam giác · Đa thức',
+  8: 'Hằng đẳng thức · Phương trình · Hàm số · Pythagore',
+  9: 'Căn thức · Hệ phương trình · Parabol · Lượng giác · Đường tròn',
+};
 export const skill = (code) => SKILLS.find((s) => s.code === code) || null;
 
 /** Sinh 1 câu của bài `code` ở mức `lv` (thử lại nếu lần sinh ngẫu nhiên không đủ phương án). */

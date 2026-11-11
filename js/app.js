@@ -1,6 +1,6 @@
 // app.js — giao diện: chọn bài, làm bài, tiến bộ, đăng nhập, quản lý tài khoản.
 // Mọi thứ chạy trong máy; máy chủ Apps Script chỉ dùng để đăng nhập và lưu kết quả lên Google Sheet.
-import { SKILLS, GRADES, make, skill, shuffle } from './gen.js';
+import { SKILLS, GRADES, GRADE_INFO, make, skill, shuffle } from './gen.js';
 import { rich, esc, plain } from './math.js';
 import { render as drawFig } from './svg.js';
 import { ls, call, SERVER_ON } from './api.js';
@@ -98,24 +98,48 @@ function navActive() {
 }
 
 /* ================= TRANG CHỦ: chọn lớp, chọn bài ================= */
+const setGrade = (g) => { if (g) document.body.dataset.grade = g; else delete document.body.dataset.grade; };
+const HERO_ART = `<svg class="hero-art" viewBox="0 0 220 180" aria-hidden="true">
+  <g stroke="currentColor" stroke-opacity=".18">${[20, 50, 80, 110, 140, 170, 200].map((x) => `<line x1="${x}" y1="10" x2="${x}" y2="170"/>`).join('')}
+  ${[20, 50, 80, 110, 140].map((y) => `<line x1="10" y1="${y}" x2="210" y2="${y}"/>`).join('')}</g>
+  <path d="M15 140H208M110 168V14" stroke="currentColor" stroke-opacity=".55" stroke-width="2"/>
+  <path d="M40 18Q110 250 180 18" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round"/>
+  <path d="M30 160L200 40" fill="none" stroke="#ffd166" stroke-width="4" stroke-linecap="round" stroke-dasharray="2 9"/>
+  <circle cx="110" cy="134" r="7" fill="#ffd166"/><circle cx="62" cy="82" r="5" fill="currentColor"/><circle cx="158" cy="82" r="5" fill="currentColor"/>
+</svg>`;
+
 function home() {
-  const g = GRADES.includes(+ls.get('grade', 6)) ? +ls.get('grade', 6) : 6, st = stats(hist()), wb = wrongBank().length;
+  const g = GRADES.includes(+ls.get('grade', 6)) ? +ls.get('grade', 6) : 6, rows = hist(), st = stats(rows), wb = wrongBank().length;
+  setGrade(g);
+  const total = rows.reduce((s, r) => s + r.n, 0), ok = rows.reduce((s, r) => s + r.ok, 0);
+  const hello = me() ? `Chào ${esc(me().name || me().username)} 👋` : 'Toán lớp 6 → 9';
   view.innerHTML = `
   <section class="hero">
-    <h1>Luyện Toán THCS</h1>
-    <p>Câu hỏi tự sinh theo thuật toán nên không bao giờ hết đề. Hình vẽ vector sắc nét, trang rất nhẹ, mạng yếu hay mất mạng vẫn làm bài được.</p>
+    <div class="hero-txt">
+      <p class="eyebrow">${hello}</p>
+      <h1>Luyện Toán mỗi ngày,<br><span>tiến bộ từng câu</span></h1>
+      <p class="lead">Câu hỏi tự sinh nên không bao giờ hết đề. Có hình vẽ và lời giải chi tiết; mạng yếu hay mất mạng vẫn làm bài được.</p>
+      <div class="hero-stats">${rows.length
+        ? `<span><b>${rows.length}</b>lượt đã luyện</span><span><b>${total}</b>câu đã làm</span><span><b>${Math.round((ok * 100) / total)}%</b>trả lời đúng</span>`
+        : `<span><b>${SKILLS.length}</b>dạng bài</span><span><b>3</b>mức độ</span><span><b>∞</b>câu hỏi</span>`}</div>
+    </div>${HERO_ART}
   </section>
-  <div class="seg" role="tablist" aria-label="Chọn lớp">${GRADES.map((x) => `<button role="tab" aria-selected="${x === g}" data-g="${x}">Lớp ${x}</button>`).join('')}</div>
-  <div class="row">
-    <a class="btn" href="#/luyen/tonghop-${g}">🎲 Ôn tổng hợp lớp ${g}</a>
-    ${wb ? `<a class="btn" href="#/luyen/sai">🔁 Ôn câu sai (${wb})</a>` : ''}
+  <div class="grades" role="tablist" aria-label="Chọn lớp">${GRADES.map((x) => `
+    <button role="tab" class="gtab" data-g="${x}" style="--gc:var(--g${x})" aria-selected="${x === g}">
+      <b>Toán ${x}</b><small>${SKILLS.filter((s) => s.grade === x).length} bài</small></button>`).join('')}</div>
+  <p class="gsub">${GRADE_INFO[g]}</p>
+  <div class="quick">
+    <a class="qbtn" href="#/luyen/tonghop-${g}"><span class="qi">🎲</span><span><b>Ôn tổng hợp Toán ${g}</b><small>Trộn mọi bài, độ khó tự điều chỉnh</small></span></a>
+    ${wb ? `<a class="qbtn warm" href="#/luyen/sai"><span class="qi">🔁</span><span><b>Ôn lại ${wb} câu sai</b><small>Làm đúng thì câu đó được xoá</small></span></a>` : ''}
   </div>
-  <div class="grid">${SKILLS.filter((s) => s.grade === g).map((s) => {
+  <div class="grid">${SKILLS.filter((s) => s.grade === g).map((s, i) => {
     const t = st[s.code];
-    return `<a class="card skill" href="#/luyen/${s.code}">
-      <b>${esc(s.name)}</b>
-      <span class="meta">${t ? `Thành thạo ${t.mastery}% · ${t.sessions} lượt` : 'Chưa luyện'}</span>
-      <span class="bar"><i class="${t ? tone(t.mastery) : ''}" style="width:${t ? t.mastery : 0}%"></i></span></a>`;
+    return `<a class="skill" href="#/luyen/${s.code}" style="--d:${i * 40}ms">
+      <span class="sicon">${s.icon}</span>
+      <span class="sbody"><b>${esc(s.name)}</b>
+        <span class="meta">${t ? `Thành thạo <b class="${tone(t.mastery)}t">${t.mastery}%</b> · ${t.sessions} lượt` : 'Chưa luyện · bắt đầu ngay'}</span>
+        ${t ? `<span class="bar"><i class="${tone(t.mastery)}" style="width:${t.mastery}%"></i></span>` : ''}</span>
+      <span class="go" aria-hidden="true">›</span></a>`;
   }).join('')}</div>`;
   $$('[data-g]').forEach((b) => (b.onclick = () => { ls.set('grade', +b.dataset.g); home(); }));
 }
@@ -124,14 +148,14 @@ function home() {
 function quizInfo(arg) {
   if (arg === 'sai') {
     const n = wrongBank().length;
-    return n ? { mode: 'sai', code: 'ON-SAI', grade: 0, title: 'Ôn lại câu sai', kicker: 'Ôn tập', max: n,
+    return n ? { mode: 'sai', code: 'ON-SAI', grade: 0, icon: '🔁', title: 'Ôn lại câu sai', kicker: 'Ôn tập', max: n,
       desc: `Có ${n} câu bạn từng làm sai. Làm đúng câu nào thì câu đó được xoá khỏi danh sách.` } : null;
   }
   const m = /^tonghop-(\d)$/.exec(arg);
-  if (m && GRADES.includes(+m[1])) return { mode: 'mix', code: 'TONGHOP-' + m[1], grade: +m[1], title: `Ôn tổng hợp lớp ${m[1]}`,
-    kicker: `Lớp ${m[1]}`, desc: 'Trộn câu hỏi từ mọi bài của lớp; độ khó tự điều chỉnh theo kết quả.' };
+  if (m && GRADES.includes(+m[1])) return { mode: 'mix', code: 'TONGHOP-' + m[1], grade: +m[1], icon: '🎲', title: `Ôn tổng hợp Toán ${m[1]}`,
+    kicker: `Toán ${m[1]}`, desc: 'Trộn câu hỏi từ mọi bài của lớp; độ khó tự điều chỉnh theo kết quả.' };
   const s = skill(arg);
-  return s ? { mode: 'skill', code: s.code, grade: s.grade, title: s.name, kicker: `Lớp ${s.grade}`,
+  return s ? { mode: 'skill', code: s.code, grade: s.grade, icon: s.icon, title: s.name, kicker: `Toán ${s.grade}`,
     desc: 'Câu hỏi đổi mới mỗi lần. Làm đúng liên tiếp thì câu khó dần lên; sai thì quay về mức dễ hơn.' } : null;
 }
 
@@ -141,14 +165,20 @@ function practice(arg) {
   const info = quizInfo(arg);
   if (!info) { location.hash = '#/'; return; }
   const counts = info.mode === 'sai' ? [...new Set([5, 10, 20].filter((n) => n < info.max).concat(info.max))] : [10, 15, 20];
+  const st = stats(hist())[info.code];
+  setGrade(info.grade);
   view.innerHTML = `
   <a class="back" href="#/">‹ Chọn bài khác</a>
-  <section class="card pad">
-    <p class="kicker">${esc(info.kicker)}</p>
-    <h1>${esc(info.title)}</h1>
+  <section class="setup">
+    <div class="setup-head">
+      <span class="sicon big">${info.icon}</span>
+      <div><p class="kicker">${esc(info.kicker)}</p><h1>${esc(info.title)}</h1></div>
+    </div>
     <p class="muted">${esc(info.desc)}</p>
-    <p><b>Chọn số câu:</b></p>
-    <div class="row">${counts.map((n) => `<button class="btn pri" data-n="${n}">${n} câu</button>`).join('')}</div>
+    ${st ? `<p class="mastery">Thành thạo hiện tại: <b class="${tone(st.mastery)}t">${st.mastery}%</b> sau ${st.sessions} lượt</p>` : ''}
+    <p class="label">Chọn số câu</p>
+    <div class="counts">${counts.map((n, i) => `<button class="count${i === 0 ? ' hot' : ''}" data-n="${n}"><b>${n}</b><small>câu · khoảng ${Math.max(3, Math.round(n * 0.8))} phút</small></button>`).join('')}</div>
+    <ul class="tips"><li>✅ Trả lời xong xem ngay lời giải</li><li>📈 Đúng liên tiếp thì câu khó dần lên</li><li>⌨️ Trên máy tính bấm phím 1–4 để chọn</li></ul>
   </section>`;
   $$('[data-n]').forEach((b) => (b.onclick = () => start(info, +b.dataset.n)));
 }
@@ -174,24 +204,34 @@ function next() {
   window.scrollTo(0, 0);
 }
 
-const PRAISE = ['Chính xác!', 'Đúng rồi!', 'Tuyệt vời!', 'Giỏi lắm!', 'Rất tốt!'];
+const PRAISE = ['Chính xác!', 'Đúng rồi!', 'Tuyệt vời!', 'Giỏi lắm!', 'Rất tốt!', 'Xuất sắc!'];
 function drawQ() {
   const q = Q.cur, s = skill(q.code), done = Q.picked >= 0, right = Q.picked === q.ans;
   const cls = (k) => (!done ? '' : k === q.ans ? 'ok' : k === Q.picked ? 'bad' : 'dim');
+  const pos = Q.i + (done ? 1 : 0);
+  setGrade(s ? s.grade : Q.grade);
   view.innerHTML = `
-  <div class="qtop"><a class="back" href="#/" id="quit">‹ Thoát</a><span class="muted ell">${esc(Q.title)}</span></div>
-  <div class="prog" role="progressbar" aria-valuemin="0" aria-valuemax="${Q.n}" aria-valuenow="${Q.i + (done ? 1 : 0)}"><i style="width:${((Q.i + (done ? 1 : 0)) / Q.n) * 100}%"></i></div>
-  <div class="qmeta"><span>Câu ${Q.i + 1}/${Q.n}</span><span class="pill lv${q.lv}">${LV[q.lv]}</span>
-    ${Q.mode !== 'skill' && s ? `<span class="pill">${esc(s.name)}</span>` : ''}<span class="sp"></span><span class="okc">✓ ${Q.ok}</span></div>
-  <section class="card pad qcard">
+  <div class="qtop">
+    <a class="back" href="#/" id="quit">✕ Thoát</a>
+    <span class="qtitle ell">${esc(Q.title)}</span>
+    <span class="score" title="Số câu đúng">⭐ ${Q.ok}</span>
+  </div>
+  <div class="prog" role="progressbar" aria-valuemin="0" aria-valuemax="${Q.n}" aria-valuenow="${pos}"><i style="width:${(pos / Q.n) * 100}%"></i></div>
+  <section class="qcard${done ? (right ? ' is-ok' : ' is-bad') : ''}">
+    <div class="qmeta">
+      <span class="qnum">Câu ${Q.i + 1}<small>/${Q.n}</small></span>
+      <span class="lvl lv${q.lv}" title="Mức độ">${'●'.repeat(q.lv)}${'○'.repeat(3 - q.lv)} ${LV[q.lv]}</span>
+      ${Q.mode !== 'skill' && s ? `<span class="pill">${s.icon} ${esc(s.name)}</span>` : ''}
+    </div>
     <div class="stem">${rich(q.q)}</div>
     ${q.fig ? `<div class="figbox">${drawFig(q.fig)}</div>` : ''}
     <div class="opts">${q.opts.map((o, k) => `<button class="opt ${cls(k)}" data-k="${k}" ${done ? 'disabled' : ''}>
-      <span class="key">${'ABCD'[k]}</span><span class="otx">${rich(o)}</span></button>`).join('')}</div>
+      <span class="key">${done && k === q.ans ? '✓' : done && k === Q.picked ? '✗' : 'ABCD'[k]}</span><span class="otx">${rich(o)}</span></button>`).join('')}</div>
     ${done ? `<div class="fb ${right ? 'ok' : 'bad'}" role="status">
-        <b>${right ? PRAISE[Math.floor(Math.random() * PRAISE.length)] : `Chưa đúng. Đáp án đúng là ${'ABCD'[q.ans]}.`}</b>
-        <div class="exp">${rich(q.exp)}</div></div>
-      <div class="row end"><button class="btn pri" id="nextBtn">${Q.i + 1 >= Q.n ? 'Xem kết quả' : 'Câu tiếp ›'}</button></div>` : ''}
+        <span class="fb-ic">${right ? '🎉' : '💡'}</span>
+        <div><b>${right ? PRAISE[Math.floor(Math.random() * PRAISE.length)] : `Chưa đúng rồi! Đáp án đúng là ${'ABCD'[q.ans]}.`}</b>
+        <div class="exp">${rich(q.exp)}</div></div></div>
+      <div class="row end"><button class="btn pri big" id="nextBtn">${Q.i + 1 >= Q.n ? 'Xem kết quả 🏁' : 'Câu tiếp theo ›'}</button></div>` : ''}
   </section>`;
   $$('.opt').forEach((b) => (b.onclick = () => answer(+b.dataset.k)));
   $('#quit').onclick = (e) => { if (Q.i > 0 && !confirm('Thoát lượt này? Kết quả sẽ không được lưu.')) e.preventDefault(); else Q = null; };
@@ -229,12 +269,14 @@ function finish() {
   const info = quizInfo(Q.mode === 'sai' ? 'sai' : Q.mode === 'mix' ? 'tonghop-' + Q.grade : Q.code);
   const n = Q.n, missed = Q.missed;
   Q = null;
+  const stars = pct >= 90 ? 3 : pct >= 70 ? 2 : pct >= 50 ? 1 : 0;
   view.innerHTML = `
-  <section class="card pad center">
+  <section class="result">
+    <div class="stars">${[1, 2, 3].map((k) => `<span class="${k <= stars ? 'on' : ''}" style="--d:${k * 180}ms">★</span>`).join('')}</div>
     <div class="ring ${tone(pct)}" style="--p:${pct}"><span>${pct}%</span></div>
     <h1>Đúng ${rec.ok}/${n} câu</h1>
-    <p class="muted">${esc(rec.name)} · ${dur(secs)}</p>
-    <p>${msg}</p>
+    <p class="muted">${esc(rec.name)} · ⏱ ${dur(secs)}</p>
+    <p class="msg">${msg}</p>
     ${!me() && SERVER_ON ? '<p class="muted small">Kết quả đang lưu trong máy này. <a href="#/dang-nhap">Đăng nhập</a> để lưu lên hệ thống.</p>' : ''}
     <div class="row center">
       ${info ? '<button class="btn pri" id="again">Làm lượt mới</button>' : ''}
@@ -251,7 +293,19 @@ function finish() {
     </section>`).join('')}` : ''}`;
   const again = $('#again');
   if (again) again.onclick = () => practice(info.mode === 'sai' ? 'sai' : info.mode === 'mix' ? 'tonghop-' + info.grade : info.code);
+  if (pct >= 80) confetti();
   foot();
+}
+
+/** Pháo giấy chúc mừng (vài chục ô màu rơi xuống, tự xoá sau 3 giây). */
+function confetti() {
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const box = document.createElement('div'), colors = ['#ffd166', '#ef476f', '#06d6a0', '#118ab2', '#8338ec', '#ff7b00'];
+  box.className = 'confetti'; box.setAttribute('aria-hidden', 'true');
+  box.innerHTML = Array.from({ length: 60 }, () => `<i style="left:${Math.random() * 100}%;background:${colors[Math.floor(Math.random() * colors.length)]};
+    animation-delay:${Math.random() * 0.6}s;animation-duration:${1.8 + Math.random() * 1.4}s;--r:${Math.random() * 720 - 360}deg"></i>`).join('');
+  document.body.appendChild(box);
+  setTimeout(() => box.remove(), 4000);
 }
 
 /* ================= TIẾN BỘ ================= */
@@ -281,8 +335,8 @@ async function progress(arg) {
   ${weak.length ? `<div class="card pad warn-box"><b>Nên ôn thêm:</b> ${weak.map((s) => `<a href="#/luyen/${s.code}">${esc(s.name)} (${st[s.code].mastery}%)</a>`).join(' · ')}</div>` : ''}
   ${GRADES.map((g) => {
     const list = SKILLS.filter((s) => s.grade === g && st[s.code]);
-    return list.length ? `<h2>Lớp ${g}</h2><div class="card">${list.map((s) => `
-      <div class="prow"><span class="pname">${esc(s.name)}</span>
+    return list.length ? `<h2>Toán ${g}</h2><div class="card">${list.map((s) => `
+      <div class="prow"><span class="pname">${s.icon} ${esc(s.name)}</span>
         <span class="bar"><i class="${tone(st[s.code].mastery)}" style="width:${st[s.code].mastery}%"></i></span>
         <span class="pnum">${st[s.code].mastery}%</span><span class="muted small">${st[s.code].sessions} lượt</span></div>`).join('')}</div>` : '';
   }).join('')}
@@ -418,6 +472,8 @@ function route() {
   const [name = '', arg = ''] = (location.hash || '#/').replace(/^#\/?/, '').split('/').map(decodeURIComponent);
   if (name !== 'luyen' || !Q) Q = null;
   navActive();
+  setGrade(null);
+  window.scrollTo(0, 0);
   if (name === 'luyen') return practice(arg);
   if (name === 'tien-bo') return progress(arg);
   if (name === 'dang-nhap') return SERVER_ON ? loginPage() : home();
