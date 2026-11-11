@@ -47,6 +47,7 @@ body { --grad: linear-gradient(135deg, var(--accent), var(--accent2)); }
 :root[data-theme="dark"] body { --grad: linear-gradient(135deg, color-mix(in srgb, var(--accent) 60%, #031634), color-mix(in srgb, var(--accent2) 55%, #031634)); }
 
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 html { -webkit-text-size-adjust: 100%; }
 body { margin: 0; color: var(--ink); font: 16px/1.55 var(--font); background-color: var(--bg);
   background-image: radial-gradient(1100px 520px at 90% -12%, color-mix(in srgb, var(--wave) 22%, transparent), transparent 65%),
@@ -252,6 +253,17 @@ hr { border: 0; border-top: 1px solid var(--line); margin: 1.2em 0; }
 .chip { padding: 6px 12px; border-radius: 99px; border: 1px solid var(--line); background: var(--card); color: var(--ink); text-decoration: none; font-weight: 700; font-size: .9rem; }
 .chip.on { background: var(--grad); color: #fff; border-color: transparent; }
 .warn-box { background: var(--warn-bg); margin: 12px 0; } .bad-box { background: var(--bad-bg); }
+
+/* ---------- màn hình đăng nhập ---------- */
+.login { display: grid; grid-template-columns: 1.1fr 1fr; max-width: 860px; margin: 10px auto; border-radius: 24px; overflow: hidden;
+  background: var(--card); border: 1px solid var(--line); box-shadow: var(--shadow-up); animation: rise .4s ease both; }
+.login-art { position: relative; padding: 30px 26px; background: var(--ocean); color: #fff; display: flex; flex-direction: column; justify-content: flex-end; min-height: 320px; }
+.login-art .hero-art { position: absolute; top: 18px; right: 14px; width: 200px; opacity: .9; }
+.login-art h1 { position: relative; margin: 0 0 6px; font-size: 1.7rem; }
+.login-art p { position: relative; margin: 0; opacity: .9; max-width: 32ch; }
+.login-box { padding: 28px 26px; }
+.login-box h2 { margin: 0 0 6px; font-size: 1.35rem; }
+@media (max-width: 680px) { .login { grid-template-columns: 1fr; } .login-art { min-height: 190px; padding: 22px 20px; } .login-art .hero-art { width: 130px; } }
 
 /* ---------- biểu mẫu ---------- */
 .narrow { max-width: 460px; margin: 0 auto; }

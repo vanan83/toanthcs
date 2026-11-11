@@ -6,8 +6,8 @@ import { render as drawFig } from './svg.js';
 import { ls, call, SERVER_ON } from './api.js';
 
 // Phiên bản = ngày cập nhật (năm.tháng.ngày). Mỗi lần sửa app: đổi dòng này và tăng CACHE trong sw.js.
-const VERSION = '2026.11.11-2';
-const VERSION_NOTE = '101 dạng bài theo SGK, tự cập nhật bản mới';
+const VERSION = '2026.11.11-3';
+const VERSION_NOTE = 'bắt buộc đăng nhập';
 const ADMIN = 'Quản trị';
 const LV = ['', 'Dễ', 'Vừa', 'Khó'];
 const $ = (s, el = document) => el.querySelector(s);
@@ -79,13 +79,37 @@ function logout() {
   auth = null; ls.del('auth'); chrome();
 }
 
+/* ---------------- bắt buộc đăng nhập (như app Bé vui học lớp 1) ---------------- */
+// Có máy chủ (APP_URL đã cấu hình) thì phải đăng nhập mới dùng được app.
+const mustLogin = () => SERVER_ON && !me();
+const todayStr = () => { const d = new Date(); return `${d.getFullYear()}-${z2(d.getMonth() + 1)}-${z2(d.getDate())}`; };
+/** Hết hạn sử dụng (kiểm tra ngay trong máy, kể cả khi mất mạng). */
+function expiredLocal() {
+  if (!me() || !me().expires || todayStr() <= me().expires) return false;
+  const until = dmy(me().expires);
+  logout(); toast(`Tài khoản đã hết hạn sử dụng (dùng đến ${until}). Liên hệ quản trị để gia hạn.`, true);
+  return true;
+}
+/** Mỗi lần mở app (khi có mạng): hỏi máy chủ tài khoản còn hợp lệ không (bị khoá, hết hạn, đổi mật khẩu ở máy khác…). */
+async function verifySession() {
+  if (!me() || !SERVER_ON || navigator.onLine === false) return;
+  try {
+    const u = await call('whoami', [], auth.token);
+    auth.me = u; ls.set('auth', auth); chrome();
+  } catch (e) {
+    if (e.session) { logout(); toast('Phiên đăng nhập không còn hiệu lực (tài khoản bị khoá, hết hạn hoặc đã đổi mật khẩu). Vui lòng đăng nhập lại.', true); location.hash = '#/dang-nhap'; route(); }
+  }
+}
+
 /* ---------------- khung trang ---------------- */
 function chrome() {
+  const locked = mustLogin();
+  $('.nav').hidden = locked;
   $('#navAcc').hidden = !isAdmin();
   const b = $('#meBtn');
   b.textContent = me() ? (me().name || me().username) : 'Đăng nhập';
   b.href = me() ? '#/ca-nhan' : '#/dang-nhap';
-  b.hidden = !SERVER_ON;
+  b.hidden = !SERVER_ON || locked;
   foot();
 }
 function foot() {
@@ -304,7 +328,6 @@ function finish() {
     <h1>Đúng ${rec.ok}/${n} câu</h1>
     <p class="muted">${esc(rec.name)} · ⏱ ${dur(secs)}</p>
     <p class="msg">${msg}</p>
-    ${!me() && SERVER_ON ? '<p class="muted small">Kết quả đang lưu trong máy này. <a href="#/dang-nhap">Đăng nhập</a> để lưu lên hệ thống.</p>' : ''}
     <div class="row center">
       ${info ? '<button class="btn pri" id="again">Làm lượt mới</button>' : ''}
       <a class="btn" href="#/">Chọn bài khác</a>
@@ -379,16 +402,20 @@ async function progress(arg) {
 
 /* ================= ĐĂNG NHẬP / CÁ NHÂN ================= */
 function loginPage() {
-  if (me()) { location.hash = '#/ca-nhan'; return; }
+  if (me()) { location.hash = '#/'; return; }
   view.innerHTML = `
-  <section class="card pad narrow">
-    <h1>Đăng nhập</h1>
-    <p class="muted">Đăng nhập để lưu kết quả lên hệ thống và xem tiến bộ trên mọi máy. Không đăng nhập vẫn luyện tập được.</p>
-    <form id="lf" class="form">
-      <label>Tên đăng nhập<input name="u" autocomplete="username" required autocapitalize="none"></label>
-      <label>Mật khẩu<input name="p" type="password" autocomplete="current-password" required></label>
-      <button class="btn pri">Đăng nhập</button>
-    </form>
+  <section class="login">
+    <div class="login-art">${HERO_ART}<h1>Luyện Toán THCS</h1><p>Toán 6 → 9 theo SGK Kết nối tri thức · 101 dạng bài · câu hỏi tự sinh, có lời giải</p></div>
+    <div class="login-box">
+      <h2>Đăng nhập</h2>
+      <p class="muted small">Mỗi học sinh dùng tài khoản do thầy cô / quản trị cấp. Tên đăng nhập có thể là số điện thoại.</p>
+      <form id="lf" class="form">
+        <label>Tên đăng nhập<input name="u" autocomplete="username" required autocapitalize="none" placeholder="vd: 0905123456"></label>
+        <label>Mật khẩu<input name="p" type="password" autocomplete="current-password" required></label>
+        <button class="btn pri big">Đăng nhập</button>
+      </form>
+      <p class="muted small">Chưa có tài khoản hoặc quên mật khẩu? Liên hệ quản trị: <b>Phạm Văn An · 0848.355.888</b></p>
+    </div>
   </section>`;
   $('#lf').onsubmit = (e) => {
     e.preventDefault();
@@ -509,6 +536,9 @@ function route() {
   navActive();
   setGrade(null);
   window.scrollTo(0, 0);
+  expiredLocal();
+  chrome();
+  if (mustLogin()) { if (name !== 'dang-nhap') history.replaceState(null, '', '#/dang-nhap'); return loginPage(); }
   if (name === 'luyen') return practice(arg);
   if (name === 'tien-bo') return progress(arg);
   if (name === 'dang-nhap') return SERVER_ON ? loginPage() : home();
@@ -541,6 +571,7 @@ window.addEventListener('offline', foot);
 chrome();
 route();
 flush();
+verifySession();
 if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
   const hadSW = !!navigator.serviceWorker.controller;
   navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then((reg) => reg.update()).catch(() => {});
