@@ -6,8 +6,8 @@ import { render as drawFig } from './svg.js';
 import { ls, call, SERVER_ON } from './api.js';
 
 // Phiên bản = ngày cập nhật (năm.tháng.ngày). Mỗi lần sửa app: đổi dòng này và tăng CACHE trong sw.js.
-const VERSION = '2026.11.11-4';
-const VERSION_NOTE = 'thêm tác giả ở chân trang';
+const VERSION = '2026.11.11-5';
+const VERSION_NOTE = 'tự kiểm tra bản mới mỗi 5 phút';
 const ADMIN = 'Quản trị';
 const LV = ['', 'Dễ', 'Vừa', 'Khó'];
 const $ = (s, el = document) => el.querySelector(s);
@@ -575,14 +575,24 @@ flush();
 verifySession();
 if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
   const hadSW = !!navigator.serviceWorker.controller;
-  navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then((reg) => reg.update()).catch(() => {});
-  // Có phiên bản mới vừa nhận quyền điều khiển trang → tải lại một lần để hiện bản mới
-  // (không tải lại khi đang làm bài dở, để khỏi mất câu đang làm).
-  let reloaded = false;
+  let reg = null;
+  const check = () => { if (reg && navigator.onLine !== false) reg.update().catch(() => {}); };
+  navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then((r) => { reg = r; check(); }).catch(() => {});
+  // Hỏi bản mới khi quay lại tab app và cứ 5 phút một lần (tab mở lâu vẫn được cập nhật).
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') check(); });
+  window.addEventListener('online', check);
+  setInterval(check, 5 * 60 * 1000);
+  // Có phiên bản mới vừa nhận quyền điều khiển trang → tải lại để hiện bản mới
+  // (đang làm bài dở thì chờ làm xong lượt rồi mới tải lại, để khỏi mất câu đang làm).
+  let pending = false;
+  const doReload = () => { try { sessionStorage.setItem('thcs.updated', '1'); } catch (e) { /* bỏ qua */ } location.reload(); };
   navigator.serviceWorker.addEventListener('controllerchange', () => {
-    if (!hadSW || reloaded) return;
-    reloaded = true;
-    if (Q && Q.i > 0) toast('Đã có phiên bản mới. Làm xong lượt này rồi tải lại trang để cập nhật.');
-    else location.reload();
+    if (!hadSW || pending) return;
+    pending = true;
+    if (Q && Q.i > 0) {
+      toast('Đã có phiên bản mới, sẽ cập nhật khi bạn làm xong lượt này.');
+      const t = setInterval(() => { if (!Q) { clearInterval(t); doReload(); } }, 2000);
+    } else doReload();
   });
+  try { if (sessionStorage.getItem('thcs.updated')) { sessionStorage.removeItem('thcs.updated'); setTimeout(() => toast('Đã cập nhật phiên bản mới ✨'), 400); } } catch (e) { /* bỏ qua */ }
 }
