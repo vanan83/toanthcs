@@ -152,7 +152,153 @@ function circle({ pts, segs = [], angles = [] }) {
   return svg(300, 256, b, 'đường tròn');
 }
 
-const KINDS = { numberline, coord, triangle, righttri, bars, circle };
+/* ---------------- Hình học chung ---------------- */
+// P: {A:[x,y]} (toạ độ toán, y hướng lên); seg: ['AB',...]; dash: ['AH']; ray: ['OA'] (kéo dài quá A); line: ['AB'] (kéo dài 2 phía)
+// circ: [['O', r]]; ang: [['ABC', 'nhãn', vuông?]] (góc tại B); len: [['AB','5 cm']]; tick: [['AB',1]]; par: ['AB'] (mũi tên song song)
+// poly: 'ABCD' (tô nền); hide: 'O' (không ghi tên); dots: 'ABC' (chỉ chấm các điểm này; mặc định chấm hết)
+function geo({ P, seg = [], dash = [], ray = [], line: lines = [], circ = [], ang = [], len = [], tick = [], par = [], poly = '', hide = '', dots = null }) {
+  const names = Object.keys(P), xs = [], ys = [];
+  names.forEach((n) => { xs.push(P[n][0]); ys.push(P[n][1]); });
+  circ.forEach(([c, r]) => { xs.push(P[c][0] - r, P[c][0] + r); ys.push(P[c][1] - r, P[c][1] + r); });
+  const ext = (a, b, k) => [P[b][0] + (P[b][0] - P[a][0]) * k, P[b][1] + (P[b][1] - P[a][1]) * k];
+  ray.forEach((s) => { const e = ext(s[0], s[1], 0.35); xs.push(e[0]); ys.push(e[1]); });
+  lines.forEach((s) => { [ext(s[0], s[1], 0.25), ext(s[1], s[0], 0.25)].forEach((e) => { xs.push(e[0]); ys.push(e[1]); }); });
+  const mx = Math.min(...xs), Mx = Math.max(...xs), my = Math.min(...ys), My = Math.max(...ys);
+  const k = Math.min(300 / (Mx - mx || 1), 210 / (My - my || 1)), pad = 30;
+  const W = (Mx - mx) * k + 2 * pad, H = (My - my) * k + 2 * pad;
+  const S = ([x, y]) => [pad + (x - mx) * k, pad + (My - y) * k], Q = (n) => S(P[n]);
+  const G = [W / 2, H / 2];
+  let b = '';
+  if (poly) b += `<path d="M${[...poly].map((n) => Q(n).map(f).join(' ')).join('L')}Z" class="sh" style="stroke:none"/>`;
+  circ.forEach(([c, r]) => { const o = Q(c); b += `<circle cx="${f(o[0])}" cy="${f(o[1])}" r="${f(r * k)}" class="ln"/>`; });
+  const L = (a, c, cls) => { b += line(a[0], a[1], c[0], c[1], cls); };
+  seg.forEach((s) => L(Q(s[0]), Q(s[1]), 'ln'));
+  dash.forEach((s) => L(Q(s[0]), Q(s[1]), 'ds'));
+  ray.forEach((s) => L(Q(s[0]), S(ext(s[0], s[1], 0.35)), 'ln'));
+  lines.forEach((s) => L(S(ext(s[1], s[0], 0.25)), S(ext(s[0], s[1], 0.25)), 'ln'));
+  tick.forEach(([s, n]) => { // vạch đánh dấu đoạn bằng nhau
+    const a = Q(s[0]), c = Q(s[1]), m = [(a[0] + c[0]) / 2, (a[1] + c[1]) / 2], d = Math.atan2(c[1] - a[1], c[0] - a[0]);
+    for (let i = 0; i < n; i++) { const o = (i - (n - 1) / 2) * 5, px = m[0] + o * Math.cos(d), py = m[1] + o * Math.sin(d);
+      b += line(px - 6 * Math.sin(d), py + 6 * Math.cos(d), px + 6 * Math.sin(d), py - 6 * Math.cos(d), 'am'); }
+  });
+  par.forEach((s) => { const a = Q(s[0]), c = Q(s[1]); b += head((a[0] + c[0]) / 2 + 4 * Math.cos(Math.atan2(c[1] - a[1], c[0] - a[0])), (a[1] + c[1]) / 2 + 4 * Math.sin(Math.atan2(c[1] - a[1], c[0] - a[0])), Math.atan2(c[1] - a[1], c[0] - a[0]), 'ah2'); });
+  ang.forEach(([t, lab, right]) => { b += angle(Q(t[1]), Q(t[0]), Q(t[2]), lab || '', !!right, lab ? 20 : 15); });
+  len.forEach(([s, lab]) => { // nhãn độ dài đặt lệch ra ngoài
+    const a = Q(s[0]), c = Q(s[1]), m = [(a[0] + c[0]) / 2, (a[1] + c[1]) / 2];
+    let nx = -(c[1] - a[1]), ny = c[0] - a[0]; const l = Math.hypot(nx, ny) || 1; nx /= l; ny /= l;
+    if ((m[0] + nx - G[0]) ** 2 + (m[1] + ny - G[1]) ** 2 < (m[0] - G[0]) ** 2 + (m[1] - G[1]) ** 2) { nx = -nx; ny = -ny; }
+    b += text(m[0] + nx * 13, m[1] + ny * 13, lab, 'tx sm c2t');
+  });
+  names.forEach((n) => {
+    const q = Q(n);
+    if (!dots || dots.includes(n)) b += dot(q[0], q[1]);
+    if (!hide.includes(n)) b += vname(q, G, n, 14);
+  });
+  return svg(W, H, b, 'hình vẽ');
+}
+
+/* ---------------- Biểu đồ quạt tròn ---------------- */
+function pie({ items, title = '' }) {
+  const R = 86, O = [110, 120];
+  let b = title ? text(180, 12, title, 'tx sm b') : '', a0 = -Math.PI / 2;
+  items.forEach(([n, v], i) => {
+    const a1 = a0 + (v / 100) * 2 * Math.PI, big = a1 - a0 > Math.PI ? 1 : 0, P0 = [O[0] + R * Math.cos(a0), O[1] + R * Math.sin(a0)], P1 = [O[0] + R * Math.cos(a1), O[1] + R * Math.sin(a1)];
+    b += `<path d="M${O[0]} ${O[1]}L${f(P0[0])} ${f(P0[1])}A${R} ${R} 0 ${big} 1 ${f(P1[0])} ${f(P1[1])}Z" class="pc${i % 6}"/>`;
+    const m = (a0 + a1) / 2; if (v >= 6) b += text(O[0] + R * 0.62 * Math.cos(m), O[1] + R * 0.62 * Math.sin(m), v + '%', 'tx sm b pl');
+    b += `<rect x="222" y="${44 + i * 24}" width="14" height="14" rx="3" class="pc${i % 6}"/>` + text(242, 51 + i * 24, n, 'tx sm', 'start');
+    a0 = a1;
+  });
+  return svg(360, 220, b, 'biểu đồ quạt tròn');
+}
+
+/* ---------------- Biểu đồ đoạn thẳng ---------------- */
+function linechart({ items, unit = '', title = '' }) {
+  const W = 360, H = 240, L = 42, bot = 200, top = 46, max = Math.max(...items.map((i) => i[1]));
+  const step = [1, 2, 5, 10, 20, 25, 50, 100, 200, 500].find((s) => s * 4 >= max * 1.12) || 1000, Mv = step * 4;
+  const Y = (v) => bot - (v / Mv) * (bot - top), dx = (W - L - 24) / (items.length - 1 || 1), X = (i) => L + 12 + i * dx;
+  let b = title ? text(W / 2, 12, title, 'tx sm b') : '';
+  for (let k = 0; k <= 4; k++) b += line(L, Y(k * step), W - 6, Y(k * step), k ? 'gr' : 'ax') + text(L - 6, Y(k * step), k * step, 'tx xs', 'end');
+  b += line(L, bot, L, top - 8, 'ax') + text(L - 2, top - 16, `(${unit})`, 'tx xs', 'start');
+  b += `<path d="M${items.map((it, i) => `${f(X(i))} ${f(Y(it[1]))}`).join('L')}" class="c1"/>`;
+  items.forEach(([n, v], i) => { b += dot(X(i), Y(v)) + text(X(i), Y(v) - 11, v, 'tx xs b') + text(X(i), bot + 14, n, 'tx xs'); });
+  return svg(W, H, b, 'biểu đồ đoạn thẳng');
+}
+
+/* ---------------- Biểu đồ cột kép ---------------- */
+function bars2({ items, names = ['', ''], unit = '', title = '' }) {
+  const W = 360, H = 260, L = 40, bot = 206, top = 56, max = Math.max(...items.flatMap((i) => [i[1], i[2]]));
+  const step = [1, 2, 5, 10, 20, 25, 50, 100, 200, 500].find((s) => s * 4 >= max * 1.12) || 1000, Mv = step * 4;
+  const Y = (v) => bot - (v / Mv) * (bot - top), bw = (W - L - 12) / items.length;
+  let b = title ? text(W / 2, 12, title, 'tx sm b') : '';
+  names.forEach((n, i) => { b += `<rect x="${70 + i * 140}" y="26" width="12" height="12" rx="2" class="${i ? 'col2' : 'col'}"/>` + text(88 + i * 140, 32, n, 'tx xs', 'start'); });
+  for (let k = 0; k <= 4; k++) b += line(L, Y(k * step), W - 6, Y(k * step), k ? 'gr' : 'ax') + text(L - 6, Y(k * step), k * step, 'tx xs', 'end');
+  b += line(L, bot, L, top - 8, 'ax') + text(L - 2, top - 16, `(${unit})`, 'tx xs', 'start');
+  items.forEach(([n, v1, v2], k) => {
+    const x = L + bw * k + bw * 0.14, w = bw * 0.34;
+    [[v1, 'col', x], [v2, 'col2', x + w + 2]].forEach(([v, c, xx]) => { b += `<rect x="${f(xx)}" y="${f(Y(v))}" width="${f(w)}" height="${f(bot - Y(v))}" rx="2" class="${c}"/>` + text(xx + w / 2, Y(v) - 8, v, 'tx xs'); });
+    b += text(x + w + 1, bot + 14, n, 'tx xs');
+  });
+  return svg(W, H, b, 'biểu đồ cột kép');
+}
+
+/* ---------------- Bảng số liệu (HTML) ---------------- */
+function table({ rows, title = '' }) {
+  return (title ? `<p class="ftitle">${esc(title)}</p>` : '') + `<table class="ftab">${rows.map((r, i) => `<tr>${r.map((c) => (i === 0 || r === rows[0] ? `<th>${esc(c)}</th>` : `<td>${esc(c)}</td>`)).join('')}</tr>`).join('')}</table>`;
+}
+
+/* ---------------- Hình khối (phối cảnh) ---------------- */
+// type: box | prism3 | pyr3 | pyr4 | cyl | cone | sphere ; lab: { a, b, c, h, r, l, d } (chữ ghi cạnh)
+function solid({ type, lab = {} }) {
+  const D = [34, -22]; // vector chiều sâu
+  let b = '';
+  const E = (p, q, hid) => { b += line(p[0], p[1], q[0], q[1], hid ? 'ds' : 'ln'); };
+  const T = (p, s, a = 'middle') => { if (s) b += text(p[0], p[1], s, 'tx sm c2t', a); };
+  const add = (p, v, s = 1) => [p[0] + v[0] * s, p[1] + v[1] * s];
+  if (type === 'box' || type === 'prism3' || type === 'pyr4' || type === 'pyr3') {
+    const w = 150, h = type.startsWith('pyr') ? 0 : 100, x0 = 70, y0 = 190;
+    const A = [x0, y0], B = [x0 + w, y0], C = add(B, D, 2), Dd = add(A, D, 2);
+    if (type === 'box') {
+      const up = (p) => [p[0], p[1] - h], A1 = up(A), B1 = up(B), C1 = up(C), D1 = up(Dd);
+      E(A, B); E(B, C); E(C, Dd, 1); E(Dd, A, 1); E(A1, B1); E(B1, C1); E(C1, D1); E(D1, A1); E(A, A1); E(B, B1); E(C, C1); E(Dd, D1, 1);
+      T([(A[0] + B[0]) / 2, A[1] + 16], lab.a); T([(B[0] + C[0]) / 2 + 16, (B[1] + C[1]) / 2 + 8], lab.b, 'start'); T([A[0] - 10, (A[1] + A1[1]) / 2], lab.c, 'end');
+    } else if (type === 'prism3') {
+      const M = [x0 + w * 0.45, y0 + 0], C3 = add(M, D, 2.4), up = (p) => [p[0], p[1] - h];
+      const A1 = up(A), B1 = up(B), C1 = up(C3);
+      E(A, B); E(B, C3, 0); E(C3, A, 1); E(A1, B1); E(B1, C1); E(C1, A1); E(A, A1); E(B, B1); E(C3, C1, 0);
+      T([(A[0] + B[0]) / 2, A[1] + 16], lab.a); T([B[0] + 12, (B[1] + B1[1]) / 2], lab.h, 'start');
+    } else {
+      const base = type === 'pyr4' ? [A, B, C, Dd] : [A, B, add([x0 + w * 0.5, y0], D, 2.4)];
+      const O = type === 'pyr4' ? [(A[0] + C[0]) / 2, (A[1] + C[1]) / 2] : [(base[0][0] + base[1][0] + base[2][0]) / 3, (base[0][1] + base[1][1] + base[2][1]) / 3];
+      const S = [O[0], O[1] - 150];
+      base.forEach((p, i) => { const q = base[(i + 1) % base.length]; const hid = type === 'pyr4' ? i >= 2 : i >= 1; E(p, q, hid); });
+      base.forEach((p, i) => E(S, p, type === 'pyr4' ? i === 3 : i === 2));
+      E(S, O, 1);
+      const Mab = [(A[0] + B[0]) / 2, (A[1] + B[1]) / 2]; E(S, Mab, 1);
+      T([(A[0] + B[0]) / 2, A[1] + 16], lab.a); T([O[0] + 8, (O[1] + S[1]) / 2], lab.h, 'start'); T([(S[0] + Mab[0]) / 2 - 8, (S[1] + Mab[1]) / 2], lab.d, 'end');
+      b += text(S[0], S[1] - 10, 'S', 'tx it');
+    }
+    return svg(300, 230, b, 'hình khối');
+  }
+  const cx = 150, rx = 70, ry = 18, top = 40, bot = 190;
+  if (type === 'cyl') {
+    b += `<ellipse cx="${cx}" cy="${top}" rx="${rx}" ry="${ry}" class="ln"/>`;
+    b += `<path d="M${cx - rx} ${bot}A${rx} ${ry} 0 0 0 ${cx + rx} ${bot}" class="ln"/><path d="M${cx - rx} ${bot}A${rx} ${ry} 0 0 1 ${cx + rx} ${bot}" class="ds"/>`;
+    E([cx - rx, top], [cx - rx, bot]); E([cx + rx, top], [cx + rx, bot]); E([cx, bot], [cx + rx, bot], 1); E([cx, top], [cx, bot], 1);
+    T([cx + rx / 2, bot - 8], lab.r); T([cx + rx + 10, (top + bot) / 2], lab.h, 'start');
+  } else if (type === 'cone') {
+    const S = [cx, top - 10];
+    b += `<path d="M${cx - rx} ${bot}A${rx} ${ry} 0 0 0 ${cx + rx} ${bot}" class="ln"/><path d="M${cx - rx} ${bot}A${rx} ${ry} 0 0 1 ${cx + rx} ${bot}" class="ds"/>`;
+    E(S, [cx - rx, bot]); E(S, [cx + rx, bot]); E(S, [cx, bot], 1); E([cx, bot], [cx + rx, bot], 1);
+    T([cx + rx / 2, bot - 8], lab.r); T([cx + 8, (S[1] + bot) / 2], lab.h, 'start'); T([cx + rx / 2 + 14, (S[1] + bot) / 2 - 6], lab.l, 'start');
+  } else {
+    const R = 80, cy = 115;
+    b += `<circle cx="${cx}" cy="${cy}" r="${R}" class="ln"/><path d="M${cx - R} ${cy}A${R} ${ry} 0 0 0 ${cx + R} ${cy}" class="ln"/><path d="M${cx - R} ${cy}A${R} ${ry} 0 0 1 ${cx + R} ${cy}" class="ds"/>`;
+    E([cx, cy], [cx + R, cy], 1); b += dot(cx, cy); T([cx + R / 2, cy - 10], lab.r);
+  }
+  return svg(300, 220, b, 'hình khối');
+}
+
+const KINDS = { numberline, coord, triangle, righttri, bars, circle, geo, pie, line: linechart, bars2, table, solid };
 export function render(fig) {
   if (!fig || !KINDS[fig.kind]) return '';
   try { return KINDS[fig.kind](fig.data || {}); } catch (e) { console.error(e); return ''; }

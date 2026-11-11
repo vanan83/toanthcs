@@ -1,6 +1,6 @@
 // app.js — giao diện: chọn bài, làm bài, tiến bộ, đăng nhập, quản lý tài khoản.
 // Mọi thứ chạy trong máy; máy chủ Apps Script chỉ dùng để đăng nhập và lưu kết quả lên Google Sheet.
-import { SKILLS, GRADES, GRADE_INFO, make, skill, shuffle } from './gen.js';
+import { SKILLS, GRADES, GRADE_INFO, CHAPTERS, make, skill, shuffle } from './gen.js';
 import { rich, esc, plain } from './math.js';
 import { render as drawFig } from './svg.js';
 import { ls, call, SERVER_ON } from './api.js';
@@ -132,15 +132,20 @@ function home() {
     <a class="qbtn" href="#/luyen/tonghop-${g}"><span class="qi">🎲</span><span><b>Ôn tổng hợp Toán ${g}</b><small>Trộn mọi bài, độ khó tự điều chỉnh</small></span></a>
     ${wb ? `<a class="qbtn warm" href="#/luyen/sai"><span class="qi">🔁</span><span><b>Ôn lại ${wb} câu sai</b><small>Làm đúng thì câu đó được xoá</small></span></a>` : ''}
   </div>
-  <div class="grid">${SKILLS.filter((s) => s.grade === g).map((s, i) => {
-    const t = st[s.code];
-    return `<a class="skill" href="#/luyen/${s.code}" style="--d:${i * 40}ms">
-      <span class="sicon">${s.icon}</span>
-      <span class="sbody"><b>${esc(s.name)}</b>
-        <span class="meta">${t ? `Thành thạo <b class="${tone(t.mastery)}t">${t.mastery}%</b> · ${t.sessions} lượt` : 'Chưa luyện · bắt đầu ngay'}</span>
-        ${t ? `<span class="bar"><i class="${tone(t.mastery)}" style="width:${t.mastery}%"></i></span>` : ''}</span>
-      <span class="go" aria-hidden="true">›</span></a>`;
-  }).join('')}</div>`;
+  ${Object.entries(CHAPTERS[g]).map(([ch, title]) => {
+    const list = SKILLS.filter((s) => s.grade === g && s.ch === ch);
+    if (!list.length) return '';
+    return `<section class="chap"><h2 class="chap-h"><span class="chap-n">Chương ${ch}</span>${esc(title)}</h2>
+    <div class="grid">${list.map((s, i) => {
+      const t = st[s.code];
+      return `<a class="skill" href="#/luyen/${s.code}" style="--d:${i * 40}ms">
+        <span class="sicon">${s.icon}</span>
+        <span class="sbody"><small class="bai">${esc(s.bai)}</small><b>${esc(s.name)}</b>
+          <span class="meta">${t ? `Thành thạo <b class="${tone(t.mastery)}t">${t.mastery}%</b> · ${t.sessions} lượt` : 'Chưa luyện · bắt đầu ngay'}</span>
+          ${t ? `<span class="bar"><i class="${tone(t.mastery)}" style="width:${t.mastery}%"></i></span>` : ''}</span>
+        <span class="go" aria-hidden="true">›</span></a>`;
+    }).join('')}</div></section>`;
+  }).join('')}`;
   $$('[data-g]').forEach((b) => (b.onclick = () => { ls.set('grade', +b.dataset.g); home(); }));
 }
 
@@ -155,11 +160,20 @@ function quizInfo(arg) {
   if (m && GRADES.includes(+m[1])) return { mode: 'mix', code: 'TONGHOP-' + m[1], grade: +m[1], icon: '🎲', title: `Ôn tổng hợp Toán ${m[1]}`,
     kicker: `Toán ${m[1]}`, desc: 'Trộn câu hỏi từ mọi bài của lớp; độ khó tự điều chỉnh theo kết quả.' };
   const s = skill(arg);
-  return s ? { mode: 'skill', code: s.code, grade: s.grade, icon: s.icon, title: s.name, kicker: `Toán ${s.grade}`,
+  return s ? { mode: 'skill', code: s.code, grade: s.grade, icon: s.icon, title: s.name, kicker: `Toán ${s.grade} · Chương ${s.ch} · ${s.bai} (SGK Kết nối tri thức)`,
     desc: 'Câu hỏi đổi mới mỗi lần. Làm đúng liên tiếp thì câu khó dần lên; sai thì quay về mức dễ hơn.' } : null;
 }
 
 let Q = null; // lượt làm bài đang chạy
+
+/** Chọn mức độ: 'auto' = tự điều chỉnh theo kết quả; '1' | '2' | '3' = giữ cố định cả lượt. */
+const LEVEL_OPTS = [
+  { v: 'auto', t: 'Tự động', d: 'Dễ → khó theo kết quả', dots: '⟳' },
+  { v: '1', t: 'Dễ', d: 'Làm quen, nắm cách làm', dots: '●○○' },
+  { v: '2', t: 'Vừa', d: 'Mức bài tập trên lớp', dots: '●●○' },
+  { v: '3', t: 'Khó', d: 'Nâng cao, nhiều bước', dots: '●●●' },
+];
+const lvMode = () => { const v = String(ls.get('lvmode', 'auto')); return LEVEL_OPTS.some((o) => o.v === v) ? v : 'auto'; };
 
 function practice(arg) {
   const info = quizInfo(arg);
@@ -176,17 +190,26 @@ function practice(arg) {
     </div>
     <p class="muted">${esc(info.desc)}</p>
     ${st ? `<p class="mastery">Thành thạo hiện tại: <b class="${tone(st.mastery)}t">${st.mastery}%</b> sau ${st.sessions} lượt</p>` : ''}
-    <p class="label">Chọn số câu</p>
+    ${info.mode === 'sai' ? '' : `
+    <p class="label">1. Chọn mức độ</p>
+    <div class="levels" role="radiogroup" aria-label="Mức độ">${LEVEL_OPTS.map((o) => `
+      <button type="button" role="radio" class="lvbtn lv${o.v}" data-lv="${o.v}" aria-checked="${o.v === lvMode()}">
+        <span class="lvdots">${o.dots}</span><b>${o.t}</b><small>${o.d}</small></button>`).join('')}</div>`}
+    <p class="label">${info.mode === 'sai' ? '' : '2. '}Chọn số câu để bắt đầu</p>
     <div class="counts">${counts.map((n, i) => `<button class="count${i === 0 ? ' hot' : ''}" data-n="${n}"><b>${n}</b><small>câu · khoảng ${Math.max(3, Math.round(n * 0.8))} phút</small></button>`).join('')}</div>
-    <ul class="tips"><li>✅ Trả lời xong xem ngay lời giải</li><li>📈 Đúng liên tiếp thì câu khó dần lên</li><li>⌨️ Trên máy tính bấm phím 1–4 để chọn</li></ul>
+    <ul class="tips"><li>✅ Trả lời xong xem ngay lời giải</li><li>📈 Mức Tự động: đúng liên tiếp thì câu khó dần lên</li><li>⌨️ Trên máy tính bấm phím 1–4 để chọn</li></ul>
   </section>`;
+  $$('[data-lv]').forEach((b) => (b.onclick = () => {
+    ls.set('lvmode', b.dataset.lv);
+    $$('[data-lv]').forEach((x) => x.setAttribute('aria-checked', String(x === b)));
+  }));
   $$('[data-n]').forEach((b) => (b.onclick = () => start(info, +b.dataset.n)));
 }
 
 function start(info, n) {
-  const st = stats(hist())[info.code];
-  const lv = st ? (st.mastery >= 90 ? 3 : st.mastery >= 75 ? 2 : 1) : 1;
-  Q = { ...info, n, i: 0, ok: 0, lv, streak: 0, t0: Date.now(), wrong: [], missed: [], cur: null, picked: -1,
+  const st = stats(hist())[info.code], mode = info.mode === 'sai' ? 'auto' : lvMode();
+  const lv = mode !== 'auto' ? +mode : st ? (st.mastery >= 90 ? 3 : st.mastery >= 75 ? 2 : 1) : 1;
+  Q = { ...info, n, i: 0, ok: 0, lv, fixedLv: mode !== 'auto', streak: 0, t0: Date.now(), wrong: [], missed: [], cur: null, picked: -1,
     fixed: info.mode === 'sai' ? shuffle(wrongBank().slice()).slice(0, n) : null };
   if (Q.fixed) Q.n = Q.fixed.length;
   next();
@@ -246,10 +269,11 @@ function answer(k) {
   let bank = wrongBank();
   if (right) {
     Q.ok++; Q.streak++;
-    if (Q.streak >= 2 && Q.lv < 3) { Q.lv++; Q.streak = 0; }
+    if (!Q.fixedLv && Q.streak >= 2 && Q.lv < 3) { Q.lv++; Q.streak = 0; }
     if (Q.mode === 'sai') bank = bank.filter((x) => x.key !== key);
   } else {
-    Q.streak = 0; Q.lv = Math.max(1, Q.lv - 1);
+    Q.streak = 0;
+    if (!Q.fixedLv) Q.lv = Math.max(1, Q.lv - 1);
     Q.wrong.push({ q: plain(q.q).slice(0, 200), a: plain(q.opts[k]).slice(0, 80), c: plain(q.opts[q.ans]).slice(0, 80), k: q.code });
     Q.missed.push({ q, k });
     if (Q.mode !== 'sai') bank = bank.filter((x) => x.key !== key).concat([{ ...q, key }]);
@@ -311,12 +335,14 @@ function confetti() {
 /* ================= TIẾN BỘ ================= */
 async function progress(arg) {
   let rows = hist(), title = me() ? me().name || me().username : 'Máy này (chưa đăng nhập)', kids = null;
+  const my = navSeq;
   if (isAdmin()) {
     loading();
     try {
       kids = await call('kids', [], auth.token);
       if (arg && arg !== who()) { const r = await call('progress', [arg], auth.token); rows = r.rows; title = r.user.name || r.user.username; }
-    } catch (e) { if (sessionCheck(e)) return; view.innerHTML = errBox(e); return; }
+    } catch (e) { if (my !== navSeq) return; if (sessionCheck(e)) return; view.innerHTML = errBox(e); return; }
+    if (my !== navSeq) return; // người dùng đã chuyển sang trang khác trong lúc chờ máy chủ
   }
   const st = stats(rows), total = rows.reduce((s, r) => s + r.n, 0), ok = rows.reduce((s, r) => s + r.ok, 0);
   const since = new Date(Date.now() - 6 * 864e5), sinceS = `${since.getFullYear()}-${z2(since.getMonth() + 1)}-${z2(since.getDate())}`;
@@ -414,7 +440,11 @@ function profile() {
 async function accounts() {
   if (!isAdmin()) { location.hash = '#/'; return; }
   loading();
-  try { drawAccounts(await call('listUsers', [], auth.token)); } catch (e) { if (!sessionCheck(e)) view.innerHTML = errBox(e); }
+  const my = navSeq;
+  try {
+    const data = await call('listUsers', [], auth.token);
+    if (my === navSeq) drawAccounts(data);
+  } catch (e) { if (my === navSeq && !sessionCheck(e)) view.innerHTML = errBox(e); }
 }
 function drawAccounts(data, edit = null) {
   const link = location.href.split('#')[0];
@@ -468,7 +498,9 @@ function drawAccounts(data, edit = null) {
 }
 
 /* ================= ĐIỀU HƯỚNG ================= */
+let navSeq = 0; // tăng mỗi lần đổi trang; trang chờ máy chủ chỉ vẽ nếu số này chưa đổi
 function route() {
+  navSeq++;
   const [name = '', arg = ''] = (location.hash || '#/').replace(/^#\/?/, '').split('/').map(decodeURIComponent);
   if (name !== 'luyen' || !Q) Q = null;
   navActive();
@@ -497,6 +529,10 @@ $('#theme').onclick = () => {
 };
 
 window.addEventListener('hashchange', route);
+// bấm lại đúng mục đang mở (hash không đổi) thì vẫn vẽ lại trang đó
+$$('.nav a, .brand').forEach((a) => a.addEventListener('click', () => {
+  if (a.getAttribute('href') === (location.hash || '#/')) { Q = null; route(); }
+}));
 window.addEventListener('online', () => { foot(); flush(); });
 window.addEventListener('offline', foot);
 chrome();

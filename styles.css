@@ -138,6 +138,10 @@ hr { border: 0; border-top: 1px solid var(--line); margin: 1.2em 0; }
 .qbtn b { display: block; } .qbtn small { color: rgba(255, 255, 255, .85); }
 .qi { display: grid; place-items: center; flex: none; width: 42px; height: 42px; border-radius: 12px; background: rgba(255, 255, 255, .2); font-size: 1.3rem; }
 
+.chap { margin-top: 18px; }
+.chap-h { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; margin: 0 2px 10px; font-size: 1.02rem; }
+.chap-n { padding: 2px 10px; border-radius: 99px; background: var(--grad); color: #fff; font-size: .78rem; font-weight: 800; letter-spacing: .03em; white-space: nowrap; }
+.bai { color: var(--accent); font-weight: 800; font-size: .74rem; text-transform: uppercase; letter-spacing: .04em; }
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
 .skill { display: flex; align-items: center; gap: 14px; padding: 16px; border-radius: 18px; text-decoration: none; color: var(--ink);
   background: var(--card); border: 1px solid var(--line); box-shadow: var(--shadow); animation: rise .45s ease both; animation-delay: var(--d, 0ms);
@@ -167,6 +171,15 @@ hr { border: 0; border-top: 1px solid var(--line); margin: 1.2em 0; }
 .count b { font-size: 1.9rem; line-height: 1.1; color: var(--accent); } .count small { color: var(--muted); }
 .count:hover { transform: translateY(-3px); border-color: var(--accent); box-shadow: var(--shadow-up); }
 .count.hot { background: var(--grad); border-color: transparent; } .count.hot b, .count.hot small { color: #fff; }
+.levels { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
+.lvbtn { display: grid; gap: 2px; justify-items: start; text-align: left; padding: 12px 14px; border-radius: 14px; border: 2px solid var(--line);
+  background: var(--card); color: var(--ink); font: inherit; cursor: pointer; transition: border-color .15s, background .15s, transform .15s; }
+.lvbtn:hover { transform: translateY(-2px); border-color: var(--accent); }
+.lvbtn b { font-size: 1.02rem; } .lvbtn small { color: var(--muted); font-size: .8rem; }
+.lvdots { font-size: .85rem; letter-spacing: .1em; color: var(--accent); font-weight: 800; }
+.lvbtn.lv1 .lvdots { color: var(--ok); } .lvbtn.lv2 .lvdots { color: var(--mid); } .lvbtn.lv3 .lvdots { color: var(--bad); }
+.lvbtn[aria-checked="true"] { border-color: var(--accent); background: var(--tint); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent); }
+.lvbtn[aria-checked="true"] b::after { content: " ✓"; color: var(--accent); }
 .tips { list-style: none; padding: 0; margin: 18px 0 0; display: flex; flex-wrap: wrap; gap: 8px 18px; color: var(--muted); font-size: .88rem; }
 
 /* ---------- làm bài ---------- */
@@ -266,11 +279,18 @@ th { color: var(--muted); font-size: .8rem; } .acts { white-space: nowrap; } .ac
 .fig .ln { stroke: var(--ink); stroke-width: 2; fill: none; stroke-linejoin: round; }
 .fig .sh { stroke: var(--ink); stroke-width: 2; fill: var(--tint); stroke-linejoin: round; }
 .fig .ax { stroke: var(--muted); stroke-width: 1.4; } .fig .gr { stroke: var(--line); stroke-width: 1; }
-.fig .ds { stroke: var(--muted); stroke-width: 1.2; stroke-dasharray: 4 3; }
+.fig .ds { stroke: var(--muted); stroke-width: 1.2; stroke-dasharray: 4 3; fill: none; }
 .fig .c1 { stroke: var(--accent); stroke-width: 2.6; fill: none; } .fig .c2 { stroke: var(--orange); stroke-width: 2.4; fill: none; }
 .fig .am { stroke: var(--orange); stroke-width: 1.6; fill: none; }
 .fig .ahx { fill: var(--muted); } .fig .ah2 { fill: var(--orange); }
 .fig .dt { fill: var(--accent); } .fig .col { fill: var(--accent); opacity: .85; }
+.fig .col2 { fill: var(--orange); opacity: .85; }
+.fig .pc0 { fill: #1e88e5; } .fig .pc1 { fill: #26a69a; } .fig .pc2 { fill: #ffa726; } .fig .pc3 { fill: #ef5350; } .fig .pc4 { fill: #ab47bc; } .fig .pc5 { fill: #8d6e63; }
+.fig .pl { fill: #fff; }
+.ftab { margin: 0 auto; border-collapse: collapse; background: var(--card); border-radius: 10px; overflow: hidden; font-size: .95rem; }
+.ftab th, .ftab td { border: 1px solid var(--line); padding: 6px 12px; text-align: center; }
+.ftab th { background: var(--tint); color: var(--ink); font-weight: 700; }
+.ftitle { text-align: center; font-weight: 700; margin: 0 0 8px; font-size: .92rem; }
 .figbox .fig .gr { stroke: color-mix(in srgb, var(--muted) 22%, transparent); }
 
 /* ---------- công thức (math.js) ---------- */
@@ -286,6 +306,8 @@ th { color: var(--muted); font-size: .8rem; } .acts { white-space: nowrap; } .ac
 .m-sqrt { display: inline-flex; align-items: stretch; vertical-align: baseline; }
 .m-rad { font-size: 1.05em; line-height: 1; }
 .m-rc { border-top: .07em solid currentColor; padding: .05em .12em 0 .08em; margin-left: -.02em; }
+.m-ov { border-top: .07em solid currentColor; padding-top: .05em; }
+.m-idx { font-size: .55em; vertical-align: .9em; margin-right: -.25em; }
 .m-hat { position: relative; display: inline-block; }
 .m-hat::before { content: "^"; position: absolute; left: 0; right: 0; top: -.62em; text-align: center; font-family: var(--font); font-size: .95em; transform: scaleX(1.6); }
 .m-sys { display: inline-flex; align-items: center; vertical-align: middle; margin: .2em 0; }

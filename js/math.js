@@ -1,7 +1,8 @@
 // math.js — hiển thị công thức Toán bằng HTML + CSS (thay cho KaTeX: ~2 KB, không cần font, chạy offline).
 // Chỉ hỗ trợ những lệnh app dùng: \frac{}{} \sqrt{} \hat{} \sys{}{} \text{} ^{} _{} \sin \cos ... và các ký hiệu.
-const SYM = { le: '≤', ge: '≥', ne: '≠', Rightarrow: '⇒', Leftrightarrow: '⇔', approx: '≈', in: '∈', perp: '⊥',
-  angle: '∠', circ: '°', Delta: 'Δ', alpha: 'α', beta: 'β', pi: 'π', triangle: '△', infty: '∞' };
+const SYM = { le: '≤', ge: '≥', ne: '≠', Rightarrow: '⇒', Leftrightarrow: '⇔', approx: '≈', in: '∈', notin: '∉', perp: '⊥',
+  parallel: '∥', sim: '∽', angle: '∠', circ: '°', Delta: 'Δ', alpha: 'α', beta: 'β', pi: 'π', triangle: '△', infty: '∞',
+  mid: '|', N: 'ℕ', Z: 'ℤ', Q: 'ℚ', R: 'ℝ', subset: '⊂', cap: '∩', cup: '∪', varnothing: '∅' };
 const BIN = { cdot: '·', times: '×', div: ':', pm: '±' };
 const FN = ['sin', 'cos', 'tan', 'cot'];
 const REL = '=<>≤≥≠⇒⇔≈';
@@ -29,6 +30,8 @@ function parse(s) {
       if (n === 'frac') { const a = group(), b = group(); return `<span class="m-frac"><span>${a}</span><span>${b}</span></span>`; }
       if (n === 'sqrt') return `<span class="m-sqrt"><span class="m-rad">√</span><span class="m-rc">${group()}</span></span>`;
       if (n === 'hat') return `<span class="m-hat">${group()}</span>`;
+      if (n === 'overline') return `<span class="m-ov">${group()}</span>`;
+      if (n === 'sqrt3') return `<span class="m-sqrt"><span class="m-rad"><sup class="m-idx">3</sup>√</span><span class="m-rc">${group()}</span></span>`;
       if (n === 'sys') { const a = group(), b = group(); return `<span class="m-sys"><span class="m-br">{</span><span class="m-rows"><span>${a}</span><span>${b}</span></span></span>`; }
       if (n === 'text') return `<span class="m-tx">${raw()}</span>`;
       if (FN.includes(n)) return `<span class="m-fn">${n}</span>`;
@@ -56,6 +59,7 @@ function parse(s) {
       if (REL.includes(c)) { i++; out += `<span class="m-op">${esc(c)}</span>`; operand = false; continue; }
       if (c === '(' || c === '[') { i++; out += c; operand = false; continue; }
       if (c === '|') { i++; out += '|'; continue; } // trị tuyệt đối: |−2| (dấu − sau | mở là dấu âm)
+      if (c === ',' && /\d$/.test(out) && /[\d(]/.test(s[i + 1] || '')) { i++; out += ','; continue; } // dấu phẩy thập phân: 2,5 · 0,(3)
       if (c === ';' || c === ',') { i++; out += c + ' '; operand = false; continue; }
       const h = atom();
       operand = !/^<span class="m-(op|bin)"/.test(h);
