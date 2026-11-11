@@ -6,8 +6,8 @@ import { render as drawFig } from './svg.js';
 import { ls, call, SERVER_ON } from './api.js';
 
 // Phiên bản = ngày cập nhật (năm.tháng.ngày). Mỗi lần sửa app: đổi dòng này và tăng CACHE trong sw.js.
-const VERSION = '2026.11.11-6';
-const VERSION_NOTE = 'bỏ ghi chú ở chân trang'; // chỉ ghi chú trong code, không hiện ra màn hình
+const VERSION = '2026.11.11-7';
+const VERSION_NOTE = 'giao diện điện thoại: đầu trang 1 hàng, menu dưới cùng'; // chỉ ghi chú trong code, không hiện ra màn hình
 const ADMIN = 'Quản trị';
 const LV = ['', 'Dễ', 'Vừa', 'Khó'];
 const $ = (s, el = document) => el.querySelector(s);
@@ -107,7 +107,12 @@ function chrome() {
   $('.nav').hidden = locked;
   $('#navAcc').hidden = !isAdmin();
   const b = $('#meBtn');
-  b.textContent = me() ? (me().name || me().username) : 'Đăng nhập';
+  if (me()) {
+    const nm = me().name || me().username, w = nm.trim().split(/\s+/);
+    const ini = (w.length > 1 ? w[0][0] + w[w.length - 1][0] : nm.slice(0, 2)).toUpperCase();
+    b.innerHTML = `<span class="av" aria-hidden="true">${esc(ini)}</span><span class="mename">${esc(nm)}</span>`;
+    b.title = nm;
+  } else b.textContent = 'Đăng nhập';
   b.href = me() ? '#/ca-nhan' : '#/dang-nhap';
   b.hidden = !SERVER_ON || locked;
   foot();
