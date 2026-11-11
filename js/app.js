@@ -6,8 +6,8 @@ import { render as drawFig } from './svg.js';
 import { ls, call, SERVER_ON } from './api.js';
 
 // Phiên bản = ngày cập nhật (năm.tháng.ngày). Mỗi lần sửa app: đổi dòng này và tăng CACHE trong sw.js.
-const VERSION = '2026.11.11-7';
-const VERSION_NOTE = 'giao diện điện thoại: đầu trang 1 hàng, menu dưới cùng'; // chỉ ghi chú trong code, không hiện ra màn hình
+const VERSION = '2026.11.11-8';
+const VERSION_NOTE = 'hẹn giờ học, đồng hồ làm bài, bảng số câu'; // chỉ ghi chú trong code, không hiện ra màn hình
 const ADMIN = 'Quản trị';
 const LV = ['', 'Dễ', 'Vừa', 'Khó'];
 const $ = (s, el = document) => el.querySelector(s);
@@ -242,7 +242,7 @@ function practice(arg) {
 function start(info, n) {
   const st = stats(hist())[info.code], mode = info.mode === 'sai' ? 'auto' : lvMode();
   const lv = mode !== 'auto' ? +mode : st ? (st.mastery >= 90 ? 3 : st.mastery >= 75 ? 2 : 1) : 1;
-  Q = { ...info, n, i: 0, ok: 0, lv, fixedLv: mode !== 'auto', streak: 0, t0: Date.now(), wrong: [], missed: [], cur: null, picked: -1,
+  Q = { ...info, n, i: 0, ok: 0, lv, fixedLv: mode !== 'auto', streak: 0, t0: Date.now(), wrong: [], missed: [], res: [], cur: null, picked: -1,
     fixed: info.mode === 'sai' ? shuffle(wrongBank().slice()).slice(0, n) : null };
   if (Q.fixed) Q.n = Q.fixed.length;
   next();
@@ -270,9 +270,11 @@ function drawQ() {
   <div class="qtop">
     <a class="back" href="#/" id="quit">✕ Thoát</a>
     <span class="qtitle ell">${esc(Q.title)}</span>
+    <span class="clock" id="qClock" title="Thời gian làm bài">⏱ ${mmss((Date.now() - Q.t0) / 1000)}</span>
     <span class="score" title="Số câu đúng">⭐ ${Q.ok}</span>
   </div>
   <div class="prog" role="progressbar" aria-valuemin="0" aria-valuemax="${Q.n}" aria-valuenow="${pos}"><i style="width:${(pos / Q.n) * 100}%"></i></div>
+  <div class="qdots" aria-label="Các câu hỏi">${Array.from({ length: Q.n }, (_, k) => `<span class="${Q.res[k] || ''}${k === Q.i ? ' cur' : ''}" title="Câu ${k + 1}${Q.res[k] === 'ok' ? ' – đúng' : Q.res[k] === 'bad' ? ' – sai' : ''}">${k + 1}</span>`).join('')}</div>
   <section class="qcard${done ? (right ? ' is-ok' : ' is-bad') : ''}">
     <div class="qmeta">
       <span class="qnum">Câu ${Q.i + 1}<small>/${Q.n}</small></span>
@@ -299,6 +301,7 @@ function answer(k) {
   if (!Q || Q.picked >= 0) return;
   const q = Q.cur, right = k === q.ans, key = q.key || q.q + '|' + q.opts.join('|');
   Q.picked = k;
+  Q.res[Q.i] = right ? 'ok' : 'bad';
   let bank = wrongBank();
   if (right) {
     Q.ok++; Q.streak++;
@@ -552,6 +555,68 @@ function route() {
   if (name === 'tai-khoan') return accounts();
   home();
 }
+
+/* ---------------- đồng hồ làm bài + hẹn giờ học (lưu trên máy này) ---------------- */
+const mmss = (s) => { s = Math.max(0, Math.floor(s)); return `${z2(Math.floor(s / 60))}:${z2(s % 60)}`; };
+let TMR = ls.get('timer', null);
+function dialog(html) {
+  const d = document.createElement('div');
+  d.className = 'dlg'; d.innerHTML = `<div class="dlg-card" role="dialog" aria-modal="true">${html}</div>`;
+  d.onclick = (e) => { if (e.target === d) d.remove(); };
+  $$('.dlg').forEach((x) => x.remove());
+  document.body.appendChild(d);
+  return d;
+}
+function setTimer(min) {
+  TMR = min ? { end: Date.now() + min * 60000, min } : null;
+  ls.set('timer', TMR);
+  $$('.dlg').forEach((x) => x.remove());
+  tick();
+  toast(min ? `Đã hẹn ${min} phút học ⏰` : 'Đã tắt hẹn giờ');
+}
+function openTimer() {
+  const d = dialog(`<h2>⏰ Hẹn giờ học</h2>
+    <p class="muted">Chọn thời gian học. Hết giờ, app sẽ báo để bạn dừng lại nghỉ ngơi.</p>
+    <div class="timer-opts">${[15, 20, 30, 45, 60, 90].map((m) => `<button class="btn${TMR && TMR.min === m ? ' pri' : ''}" data-m="${m}">${m} phút</button>`).join('')}</div>
+    <div class="row center">${TMR ? '<button class="btn danger" data-m="0">⏹ Tắt hẹn giờ</button>' : ''}<button class="btn" data-x>Đóng</button></div>`);
+  $$('[data-m]', d).forEach((b) => (b.onclick = () => setTimer(+b.dataset.m)));
+  $('[data-x]', d).onclick = () => d.remove();
+}
+/** Hết giờ: "Nghỉ thôi" thì lượt đang làm dở được chấm và lưu theo các câu đã làm. */
+function timeUp() {
+  const min = TMR.min;
+  TMR = null; ls.set('timer', null); tick();
+  const d = dialog(`<div class="center"><div class="dlg-ic">⏰</div><h2>Hết giờ học rồi!</h2>
+    <p>Bạn đã học đủ <b>${min} phút</b>. Hãy dừng lại nghỉ ngơi nhé.</p>
+    <div class="row center"><button class="btn pri" data-rest>✅ Nghỉ thôi</button><button class="btn" data-more>⏳ Học thêm 10 phút</button></div></div>`);
+  $('[data-rest]', d).onclick = () => {
+    d.remove();
+    if (Q) {
+      const done = Q.i + (Q.picked >= 0 ? 1 : 0);
+      if (done > 0) { Q.n = done; finish(); return; }
+      Q = null;
+    }
+    if ((location.hash || '#/') === '#/') route(); else location.hash = '#/';
+  };
+  $('[data-more]', d).onclick = () => setTimer(10);
+  try { navigator.vibrate && navigator.vibrate([300, 150, 300]); } catch (e) { /* bỏ qua */ }
+}
+function tick() {
+  const c = $('#qClock');
+  if (c && Q) c.textContent = '⏱ ' + mmss((Date.now() - Q.t0) / 1000);
+  const b = $('#timerBtn');
+  if (!TMR || !TMR.end) { b.classList.remove('on', 'warn'); $('#timerTxt').textContent = 'Hẹn giờ'; return; }
+  const left = TMR.end - Date.now();
+  if (left <= 0) {
+    if (left < -10 * 60000) { TMR = null; ls.set('timer', null); return tick(); }   // hết giờ từ lâu (app đã đóng) thì thôi không báo
+    return timeUp();
+  }
+  $('#timerTxt').textContent = mmss(left / 1000);
+  b.classList.add('on'); b.classList.toggle('warn', left < 60000);
+}
+$('#timerBtn').onclick = openTimer;
+setInterval(tick, 1000);
+tick();
 
 document.addEventListener('keydown', (e) => {
   if (!Q || e.ctrlKey || e.metaKey || e.altKey || /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)) return;
