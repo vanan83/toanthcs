@@ -5,7 +5,9 @@ import { rich, esc, plain } from './math.js';
 import { render as drawFig } from './svg.js';
 import { ls, call, SERVER_ON } from './api.js';
 
-const VERSION = '1.0.0';
+// Phiên bản = ngày cập nhật (năm.tháng.ngày). Mỗi lần sửa app: đổi dòng này và tăng CACHE trong sw.js.
+const VERSION = '2026.11.11';
+const VERSION_NOTE = '101 dạng bài theo SGK';
 const ADMIN = 'Quản trị';
 const LV = ['', 'Dễ', 'Vừa', 'Khó'];
 const $ = (s, el = document) => el.querySelector(s);
@@ -88,7 +90,7 @@ function chrome() {
 }
 function foot() {
   const n = queue().length, off = navigator.onLine === false;
-  $('#foot').innerHTML = `Luyện Toán THCS · Phiên bản ${VERSION}` +
+  $('#foot').innerHTML = `Luyện Toán THCS · Phiên bản ${VERSION.split('.').reverse().join('/')} (${VERSION_NOTE})` +
     (off ? ' · <b>Đang ngoại tuyến</b> (vẫn làm bài được)' : '') +
     (n ? ` · Chờ đồng bộ ${n} lượt` : '');
 }
