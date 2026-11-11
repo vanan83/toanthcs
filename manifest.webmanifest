@@ -1,0 +1,16 @@
+{
+  "name": "Luyện Toán THCS",
+  "short_name": "Toán THCS",
+  "description": "Luyện Toán lớp 6–9: câu hỏi tự sinh, hình vẽ vector, chạy được khi mạng yếu.",
+  "lang": "vi",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f5f7fb",
+  "theme_color": "#2357d9",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml" },
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
