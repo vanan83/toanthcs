@@ -6,8 +6,8 @@ import { render as drawFig } from './svg.js';
 import { ls, call, SERVER_ON } from './api.js';
 
 // Phiên bản = ngày cập nhật (năm.tháng.ngày). Mỗi lần sửa app: đổi dòng này và tăng CACHE trong sw.js.
-const VERSION = '2026.11.11';
-const VERSION_NOTE = '101 dạng bài theo SGK';
+const VERSION = '2026.11.11-2';
+const VERSION_NOTE = '101 dạng bài theo SGK, tự cập nhật bản mới';
 const ADMIN = 'Quản trị';
 const LV = ['', 'Dễ', 'Vừa', 'Khó'];
 const $ = (s, el = document) => el.querySelector(s);
@@ -90,7 +90,8 @@ function chrome() {
 }
 function foot() {
   const n = queue().length, off = navigator.onLine === false;
-  $('#foot').innerHTML = `Luyện Toán THCS · Phiên bản ${VERSION.split('.').reverse().join('/')} (${VERSION_NOTE})` +
+  const [vd, vn] = VERSION.split('-');
+  $('#foot').innerHTML = `Luyện Toán THCS · Phiên bản ${vd.split('.').reverse().join('/')}${vn ? ` (lần ${vn})` : ''} · ${VERSION_NOTE}` +
     (off ? ' · <b>Đang ngoại tuyến</b> (vẫn làm bài được)' : '') +
     (n ? ` · Chờ đồng bộ ${n} lượt` : '');
 }
@@ -540,4 +541,16 @@ window.addEventListener('offline', foot);
 chrome();
 route();
 flush();
-if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
+if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
+  const hadSW = !!navigator.serviceWorker.controller;
+  navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then((reg) => reg.update()).catch(() => {});
+  // Có phiên bản mới vừa nhận quyền điều khiển trang → tải lại một lần để hiện bản mới
+  // (không tải lại khi đang làm bài dở, để khỏi mất câu đang làm).
+  let reloaded = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!hadSW || reloaded) return;
+    reloaded = true;
+    if (Q && Q.i > 0) toast('Đã có phiên bản mới. Làm xong lượt này rồi tải lại trang để cập nhật.');
+    else location.reload();
+  });
+}
