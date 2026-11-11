@@ -6,8 +6,8 @@ import { render as drawFig } from './svg.js';
 import { ls, call, SERVER_ON } from './api.js';
 
 // Phiên bản = ngày cập nhật (năm.tháng.ngày). Mỗi lần sửa app: đổi dòng này và tăng CACHE trong sw.js.
-const VERSION = '2026.11.11-5';
-const VERSION_NOTE = 'tự kiểm tra bản mới mỗi 5 phút';
+const VERSION = '2026.11.11-6';
+const VERSION_NOTE = 'bỏ ghi chú ở chân trang'; // chỉ ghi chú trong code, không hiện ra màn hình
 const ADMIN = 'Quản trị';
 const LV = ['', 'Dễ', 'Vừa', 'Khó'];
 const $ = (s, el = document) => el.querySelector(s);
@@ -116,7 +116,7 @@ function foot() {
   const n = queue().length, off = navigator.onLine === false;
   const [vd, vn] = VERSION.split('-');
   $('#foot').innerHTML = '<div class="foot-author">Tác giả: Phạm Văn An · Điện thoại: <a href="tel:0848355888">0848.355.888</a></div>' +
-    `<div>Phiên bản: ${vd.split('.').reverse().join('/')}${vn ? ` (lần ${vn})` : ''} · ${VERSION_NOTE}` +
+    `<div>Phiên bản: ${vd.split('.').reverse().join('/')}${vn ? ` (lần ${vn})` : ''}` +
     (off ? ' · <b>Đang ngoại tuyến</b> (vẫn làm bài được)' : '') +
     (n ? ` · Chờ đồng bộ ${n} lượt` : '') + '</div>';
 }
