@@ -6,8 +6,8 @@ import { render as drawFig } from './svg.js';
 import { ls, call, SERVER_ON } from './api.js';
 
 // Phiên bản = ngày cập nhật (năm.tháng.ngày). Mỗi lần sửa app: đổi dòng này và tăng CACHE trong sw.js.
-const VERSION = '2026.11.11-9';
-const VERSION_NOTE = 'nút Thoát khi làm bài rõ hơn'; // chỉ ghi chú trong code, không hiện ra màn hình
+const VERSION = '2026.11.11-10';
+const VERSION_NOTE = 'thêm trang Duyệt mẫu (Quản trị) để kiểm từng dạng bài'; // chỉ ghi chú trong code, không hiện ra màn hình
 const ADMIN = 'Quản trị';
 const LV = ['', 'Dễ', 'Vừa', 'Khó'];
 const $ = (s, el = document) => el.querySelector(s);
@@ -19,6 +19,7 @@ let auth = ls.get('auth', null);
 const me = () => (auth && auth.me) || null;
 const who = () => (me() ? me().username : 'khach');
 const isAdmin = () => !!me() && me().role === ADMIN;
+const canReview = () => isAdmin() || !SERVER_ON; // trang Duyệt mẫu: Quản trị (hoặc app chạy không máy chủ)
 const hist = () => ls.get('hist.' + who(), []);
 const setHist = (h) => ls.set('hist.' + who(), h.slice(-300));
 const queue = () => ls.get('queue.' + who(), []);
@@ -106,6 +107,7 @@ function chrome() {
   const locked = mustLogin();
   $('.nav').hidden = locked;
   $('#navAcc').hidden = !isAdmin();
+  $('#navRev').hidden = !canReview();
   const b = $('#meBtn');
   if (me()) {
     const nm = me().name || me().username, w = nm.trim().split(/\s+/);
@@ -475,6 +477,106 @@ function profile() {
   };
 }
 
+/* ================= DUYỆT MẪU (Quản trị) =================
+ * Mỗi dạng bài là một "khuôn": khuôn đúng thì mọi câu sinh ra đều đúng. Trang này sinh vài câu mẫu
+ * cho từng dạng × từng mức để người duyệt đọc đáp án, lời giải, hình; đánh dấu đã duyệt hoặc ghi lỗi.
+ * Trạng thái lưu trong máy này (khoá 'duyet'), ghi kèm phiên bản app lúc duyệt. */
+const RV = { grade: 6, code: '', lv: 0, n: 3, only: '' }; // only: '' | 'chua' | 'loi'
+const rvGet = () => ls.get('duyet', {});
+const rvKey = (code, lv) => code + '|' + lv;
+function rvSave(code, lv, patch) {
+  const all = rvGet(), k = rvKey(code, lv), cur = { ...(all[k] || {}), ...patch, v: VERSION, t: now() };
+  if (!cur.ok && !cur.note) delete all[k]; else all[k] = cur;
+  ls.set('duyet', all);
+}
+function rvCount(list, all) {
+  let ok = 0, bad = 0;
+  list.forEach((s) => [1, 2, 3].forEach((l) => { const r = all[rvKey(s.code, l)]; if (r && r.note) bad++; else if (r && r.ok) ok++; }));
+  return { ok, bad, tot: list.length * 3 };
+}
+function rvSample(s, lv) {
+  let q;
+  try { q = make(s.code, lv); } catch (e) { return `<div class="card pad bad-box"><b>Lỗi sinh câu:</b> ${esc(e.message)}</div>`; }
+  return `<div class="rv-q">
+    <div class="stem">${rich(q.q)}</div>
+    ${q.fig ? `<div class="figbox">${drawFig(q.fig)}</div>` : ''}
+    <ol class="rv-opts">${q.opts.map((o, k) => `<li class="${k === q.ans ? 'ok' : ''}"><span class="key">${k === q.ans ? '✓' : 'ABCD'[k]}</span><span>${rich(o)}</span></li>`).join('')}</ol>
+    <div class="exp"><span class="tag ok">Lời giải</span> ${rich(q.exp)}</div></div>`;
+}
+function reviewPage() {
+  if (!canReview()) { location.hash = '#/'; return; }
+  const g = RV.grade, all = rvGet();
+  const gradeSk = SKILLS.filter((s) => s.grade === g);
+  const skills = gradeSk.filter((s) => !RV.code || s.code === RV.code);
+  const lvs = RV.lv ? [RV.lv] : [1, 2, 3];
+  const c = rvCount(gradeSk, all), ca = rvCount(SKILLS, all);
+  const chip = (attr, v, label, on) => `<button class="chip${on ? ' on' : ''}" data-${attr}="${v}">${label}</button>`;
+  const block = (s, lv) => {
+    const r = all[rvKey(s.code, lv)] || {}, state = r.note ? 'bad' : r.ok ? 'ok' : '';
+    if ((RV.only === 'chua' && state) || (RV.only === 'loi' && state !== 'bad')) return '';
+    return `<div class="rv-lv ${state}" data-k="${s.code}|${lv}">
+      <div class="rv-lvh"><span class="lvl lv${lv}">Mức ${LV[lv]}</span>
+        <label class="rv-ck"><input type="checkbox" data-ok ${r.ok ? 'checked' : ''}> Đã duyệt, đúng hết</label>
+        ${state ? `<small class="muted">Cập nhật ${dmy(r.t)}${r.v !== VERSION ? ' · <b>app đã đổi từ lúc duyệt</b>' : ''}</small>` : ''}
+        <button class="btn sm" data-more>🔄 Câu khác</button></div>
+      <div class="rv-samples">${Array.from({ length: RV.n }, () => rvSample(s, lv)).join('')}</div>
+      <label class="rv-note">⚠ Ghi lỗi (để trống nếu không có lỗi)
+        <textarea data-note rows="2" placeholder="vd: câu 2 đáp án phải là 3/4; hình vẽ sai tên điểm...">${esc(r.note || '')}</textarea></label>
+    </div>`;
+  };
+  setGrade(g);
+  const body = skills.map((s) => {
+    const inner = lvs.map((l) => block(s, l)).join('');
+    return inner ? `<section class="card pad rv-sk"><h2><span class="sicon">${s.icon}</span> ${esc(s.name)}
+      <small class="muted">${esc(s.code)} · Chương ${s.ch} · ${esc(s.bai)}</small></h2>${inner}</section>` : '';
+  }).join('');
+  view.innerHTML = `
+  <h1>Duyệt mẫu câu hỏi</h1>
+  <p class="muted">Mỗi dạng bài là một <b>khuôn</b> sinh câu: khuôn đúng thì mọi câu sinh ra đều đúng. Đọc các câu mẫu (đáp án có dấu ✓),
+    xem lời giải và hình; đúng hết thì tích <b>Đã duyệt</b>, có sai thì ghi vào ô lỗi. Trạng thái lưu trên máy này.</p>
+  <section class="card pad rv-bar">
+    <div class="grades" role="tablist" aria-label="Chọn lớp">${GRADES.map((x) => { const k = rvCount(SKILLS.filter((s) => s.grade === x), all); return `
+      <button role="tab" class="gtab" data-g="${x}" style="--gc:var(--g${x})" aria-selected="${x === g}">
+        <b>Toán ${x}</b><small>${k.ok}/${k.tot} đã duyệt${k.bad ? ` · ${k.bad} lỗi` : ''}</small></button>`; }).join('')}</div>
+    <div class="form"><label>Dạng bài<select id="rvCode"><option value="">Tất cả ${gradeSk.length} dạng của Toán ${g}</option>
+      ${gradeSk.map((s) => `<option value="${s.code}" ${s.code === RV.code ? 'selected' : ''}>${esc(s.ch + ' · ' + s.name)}</option>`).join('')}</select></label></div>
+    <div class="chips"><b class="rv-lb">Mức:</b>${[[0, 'Cả 3'], [1, 'Dễ'], [2, 'Vừa'], [3, 'Khó']].map(([v, t]) => chip('lv', v, t, RV.lv === v)).join('')}</div>
+    <div class="chips"><b class="rv-lb">Số câu mẫu:</b>${[1, 3, 5].map((v) => chip('n', v, v + ' câu', RV.n === v)).join('')}</div>
+    <div class="chips"><b class="rv-lb">Hiện:</b>${[['', 'Tất cả'], ['chua', 'Chưa duyệt'], ['loi', 'Có lỗi']].map(([v, t]) => chip('only', v, t, RV.only === v)).join('')}</div>
+    <p class="rv-sum">Toán ${g}: <b>${c.ok}/${c.tot}</b> mức đã duyệt${c.bad ? ` · <b class="lowt">${c.bad} có lỗi</b>` : ''} ·
+      Cả chương trình: <b>${ca.ok}/${ca.tot}</b>${ca.bad ? ` · <b class="lowt">${ca.bad} có lỗi</b>` : ''}</p>
+    <div class="row"><button class="btn pri" id="rvAgain">🔄 Sinh bộ câu mẫu khác</button>
+      <button class="btn" id="rvCopy">📋 Chép danh sách lỗi</button>
+      <button class="btn danger" id="rvReset">Xoá trạng thái duyệt</button></div>
+  </section>
+  ${body || '<p class="muted center pad">Không có mục nào khớp bộ lọc.</p>'}`;
+  $$('[data-g]').forEach((b) => (b.onclick = () => { RV.grade = +b.dataset.g; RV.code = ''; reviewPage(); }));
+  $('#rvCode').onchange = (e) => { RV.code = e.target.value; reviewPage(); };
+  $$('[data-lv]').forEach((b) => (b.onclick = () => { RV.lv = +b.dataset.lv; reviewPage(); }));
+  $$('[data-n]').forEach((b) => (b.onclick = () => { RV.n = +b.dataset.n; reviewPage(); }));
+  $$('[data-only]').forEach((b) => (b.onclick = () => { RV.only = b.dataset.only; reviewPage(); }));
+  $('#rvAgain').onclick = () => { reviewPage(); toast('Đã sinh bộ câu mẫu mới.'); };
+  $('#rvCopy').onclick = () => {
+    const lines = Object.entries(rvGet()).filter(([, r]) => r.note).map(([k, r]) => {
+      const [code, lv] = k.split('|'), s = skill(code);
+      return `- ${code} (${s ? s.name : '?'}) · mức ${LV[lv]}: ${r.note}`;
+    });
+    if (!lines.length) { toast('Chưa có lỗi nào được ghi.'); return; }
+    const text = `Lỗi duyệt mẫu Luyện Toán THCS (phiên bản ${VERSION}):\n` + lines.join('\n');
+    const show = () => { const d = dialog(`<h2>Danh sách lỗi</h2><textarea class="rv-out" rows="10" readonly>${esc(text)}</textarea>
+      <div class="row end"><button class="btn" data-x>Đóng</button></div>`); $('[data-x]', d).onclick = () => d.remove(); };
+    if (navigator.clipboard) navigator.clipboard.writeText(text).then(() => toast(`Đã chép ${lines.length} lỗi.`), show); else show();
+  };
+  $('#rvReset').onclick = () => { if (confirm('Xoá toàn bộ dấu "đã duyệt" và ghi lỗi trên máy này?')) { ls.del('duyet'); reviewPage(); } };
+  $$('.rv-lv').forEach((box) => {
+    const [code, lv] = box.dataset.k.split('|'), s = skill(code);
+    const paint = () => { const r = rvGet()[box.dataset.k] || {}; box.classList.toggle('ok', !!r.ok && !r.note); box.classList.toggle('bad', !!r.note); };
+    $('[data-ok]', box).onchange = (e) => { rvSave(code, +lv, { ok: e.target.checked }); paint(); };
+    $('[data-note]', box).onchange = (e) => { rvSave(code, +lv, { note: e.target.value.trim() }); paint(); };
+    $('[data-more]', box).onclick = () => { $('.rv-samples', box).innerHTML = Array.from({ length: RV.n }, () => rvSample(s, +lv)).join(''); };
+  });
+}
+
 /* ================= QUẢN LÝ TÀI KHOẢN (Quản trị) ================= */
 async function accounts() {
   if (!isAdmin()) { location.hash = '#/'; return; }
@@ -553,6 +655,7 @@ function route() {
   if (name === 'dang-nhap') return SERVER_ON ? loginPage() : home();
   if (name === 'ca-nhan') return profile();
   if (name === 'tai-khoan') return accounts();
+  if (name === 'duyet') return reviewPage();
   home();
 }
 
