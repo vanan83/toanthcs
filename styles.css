@@ -392,3 +392,27 @@ th { color: var(--muted); font-size: .8rem; } .acts { white-space: nowrap; } .ac
   color: var(--bad); font-weight: 800; box-shadow: var(--shadow); transition: background .15s, transform .15s; }
 .qtop .back#quit:hover { background: var(--bad-bg); transform: translateY(-1px); }
 @media (max-width: 679px) { .qtop .back#quit { padding: 6px 11px 6px 8px; } }
+
+/* ---------- duyệt mẫu (Quản trị) ---------- */
+.rv-bar { margin-bottom: 16px; } .rv-bar .grades { margin-top: 0; }
+.rv-lb { align-self: center; font-size: .9rem; margin-right: 2px; }
+.rv-sum { margin: 12px 0 0; }
+.rv-sk { margin-bottom: 16px; } .rv-sk h2 { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 0; }
+.rv-sk h2 small { font-size: .8rem; font-weight: 600; width: 100%; }
+.rv-lv { border: 1px solid var(--line); border-left: 5px solid var(--line); border-radius: 14px; padding: 12px 14px; margin-top: 12px; }
+.rv-lv.ok { border-left-color: var(--ok); background: color-mix(in srgb, var(--ok-bg) 45%, transparent); }
+.rv-lv.bad { border-left-color: var(--bad); background: color-mix(in srgb, var(--bad-bg) 45%, transparent); }
+.rv-lvh { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.rv-lvh .btn { margin-left: auto; }
+.rv-ck { display: flex; align-items: center; gap: 6px; font-weight: 700; font-size: .9rem; cursor: pointer; }
+.rv-ck input { width: 18px; height: 18px; }
+.rv-q { padding: 12px 0; border-bottom: 1px dashed var(--line); } .rv-q:last-child { border-bottom: 0; }
+.rv-q .stem { font-size: 1.02rem; }
+.rv-opts { list-style: none; padding: 0; margin: 10px 0; display: grid; gap: 6px; }
+@media (min-width: 640px) { .rv-opts { grid-template-columns: 1fr 1fr; } }
+.rv-opts li { display: flex; align-items: center; gap: 10px; padding: 6px 10px; border-radius: 10px; border: 1.5px solid var(--line); }
+.rv-opts li.ok { border-color: var(--ok); background: var(--ok-bg); font-weight: 700; }
+.rv-opts .key { flex: none; display: grid; place-items: center; width: 26px; height: 26px; border-radius: 8px; background: var(--tint); color: var(--accent); font-weight: 800; font-size: .85rem; }
+.rv-opts li.ok .key { background: var(--ok); color: #fff; }
+.rv-note { display: grid; gap: 4px; margin-top: 6px; font-weight: 700; font-size: .88rem; color: var(--bad); }
+.rv-note textarea, .rv-out { width: 100%; box-sizing: border-box; padding: 8px 10px; border: 1.5px solid var(--line); border-radius: 10px; background: var(--bg); color: var(--ink); font: .95rem var(--font); resize: vertical; }
